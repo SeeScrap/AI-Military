@@ -85,27 +85,46 @@ def get_transforms(is_train: bool, imgsz: int):
         ])
 
 
-def build_classifier(num_classes: int, backbone: str = "resnet50") -> nn.Module:
-    """Build ResNet50 classifier with custom head."""
-    if backbone == "resnet50":
-        model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+def build_classifier(num_classes: int, backbone: str = "resnet50",
+                     dropout: float = 0.3) -> nn.Module:
+    """Build classifier with custom head. Supports resnet* and efficientnet_b*."""
+
+    if backbone.startswith("resnet"):
+        # ── ResNet family (resnet18, resnet34, resnet50, resnet101, resnet152)
+        model_fn = getattr(models, backbone, None)
+        weights_enum = getattr(models, f"{backbone.replace('resnet', 'ResNet')}_Weights", None)
+        if model_fn is None:
+            raise ValueError(f"Unknown backbone: {backbone}")
+        model = model_fn(weights=weights_enum.DEFAULT if weights_enum else None)
         in_features = model.fc.in_features
         model.fc = nn.Sequential(
-            nn.Dropout(0.4),
+            nn.Dropout(dropout + 0.1),
             nn.Linear(in_features, 512),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(dropout),
             nn.Linear(512, num_classes),
         )
-    elif backbone == "efficientnet_b2":
-        model = models.efficientnet_b2(weights=models.EfficientNet_B2_Weights.DEFAULT)
+
+    elif backbone.startswith("efficientnet_b"):
+        # ── EfficientNet family (b0–b7)
+        model_fn = getattr(models, backbone, None)
+        if model_fn is None:
+            raise ValueError(f"Unknown backbone: {backbone}")
+        # Build weights enum name: efficientnet_b3 → EfficientNet_B3_Weights
+        variant = backbone.replace("efficientnet_", "").upper()  # "B3"
+        weights_name = f"EfficientNet_{variant}_Weights"
+        weights_enum = getattr(models, weights_name, None)
+        model = model_fn(weights=weights_enum.DEFAULT if weights_enum else None)
         in_features = model.classifier[1].in_features
         model.classifier = nn.Sequential(
-            nn.Dropout(0.4),
+            nn.Dropout(dropout + 0.1),
             nn.Linear(in_features, num_classes),
         )
+
     else:
         raise ValueError(f"Unknown backbone: {backbone}")
+
+    print(f"[INFO] Built {backbone} classifier (dropout={dropout})")
     return model
 
 
@@ -156,7 +175,7 @@ def plot_training_history(history: dict, save_path: str):
 
 
 def train_classifier(resume: bool = False, checkpoint_path: str | None = None,
-                     progress_callback=None):
+                     config: dict | None = None, progress_callback=None):
     """
     Train ResNet50 tank classifier with full checkpoint support.
 
@@ -164,27 +183,51 @@ def train_classifier(resume: bool = False, checkpoint_path: str | None = None,
         resume: If True, load from checkpoint before training.
         checkpoint_path: Explicit checkpoint path. If None and resume=True,
                          auto-finds the latest checkpoint.
+        config: Optional dict of hyperparameter overrides from the web UI.
+                Keys: backbone, epochs, batch, lr, weight_decay, imgsz,
+                      val_split, dropout, augmentations, optimizer, scheduler
         progress_callback: Optional callable(epoch, total, train_loss, val_loss,
                            train_acc, val_acc) for live reporting.
     """
     global _stop_requested
     _stop_requested = False
 
+    if config is None:
+        config = {}
+
     c = CFG["classifier"]
     data_dir     = c["data_dir"]
     ckpt_dir     = c["checkpoint_dir"]
     weights_dir  = c["weights_dir"]
-    imgsz        = c["imgsz"]
-    batch        = c["batch"]
-    epochs       = c["epochs"]
-    lr           = c["lr"]
-    wd           = c["weight_decay"]
+    imgsz        = int(config.get("imgsz",        c["imgsz"]))
+    batch        = int(config.get("batch",        c["batch"]))
+    epochs       = int(config.get("epochs",       c["epochs"]))
+    lr           = float(config.get("lr",           c["lr"]))
+    wd           = float(config.get("weight_decay", c["weight_decay"]))
     save_every   = c["save_every"]
-    backbone     = c["backbone"]
-    val_split    = c["val_split"]
+    backbone     = config.get("backbone",     c["backbone"])
+    val_split    = float(config.get("val_split",    c["val_split"]))
+    dropout      = float(config.get("dropout",      0.3))
+
+    # ── Sanitize values ───────────────────────────────────────
+    # UI may send val_split as percentage (e.g. 20) instead of fraction (0.2)
+    if val_split > 1.0:
+        val_split = val_split / 100.0
+    val_split = max(0.05, min(0.5, val_split))  # clamp to 5%-50%
+    batch    = max(1, batch)
+    epochs   = max(1, epochs)
+    lr       = max(1e-6, lr)
+    dropout  = max(0.0, min(0.9, dropout))
+
     # Windows: num_workers > 0 ไม่ทำงานใน thread — ใช้ 0 เสมอบน Windows
     import platform
     num_workers = 0 if platform.system() == "Windows" else (c["num_workers"] if DEVICE.type == "cuda" else 0)
+
+    # Log UI config overrides
+    if config:
+        print(f"[INFO] UI config overrides: {config}")
+        print(f"[INFO] Resolved: backbone={backbone}, epochs={epochs}, batch={batch}, "
+              f"lr={lr}, wd={wd}, imgsz={imgsz}, val_split={val_split}, dropout={dropout}")
 
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(weights_dir, exist_ok=True)
@@ -202,9 +245,17 @@ def train_classifier(resume: bool = False, checkpoint_path: str | None = None,
     class_names  = full_dataset.classes
     num_classes  = len(class_names)
     print(f"[INFO] Classes ({num_classes}): {class_names}")
+    print(f"[INFO] Total images: {len(full_dataset)}")
 
     n_val   = max(1, int(len(full_dataset) * val_split))
     n_train = len(full_dataset) - n_val
+    # Safety: ensure both splits have at least 1 sample
+    if n_train < 1:
+        n_train = max(1, len(full_dataset) - 1)
+        n_val   = len(full_dataset) - n_train
+    if n_val < 1:
+        n_val   = 1
+        n_train = len(full_dataset) - 1
     train_ds, val_ds = random_split(full_dataset, [n_train, n_val],
                                     generator=torch.Generator().manual_seed(42))
     val_ds.dataset = datasets.ImageFolder(data_dir, transform=get_transforms(False, imgsz))
@@ -215,7 +266,7 @@ def train_classifier(resume: bool = False, checkpoint_path: str | None = None,
                               num_workers=num_workers, pin_memory=(DEVICE.type == "cuda"))
 
     # ── Model ─────────────────────────────────────────────────
-    model = build_classifier(num_classes, backbone).to(DEVICE)
+    model = build_classifier(num_classes, backbone, dropout=dropout).to(DEVICE)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
@@ -289,6 +340,7 @@ def train_classifier(resume: bool = False, checkpoint_path: str | None = None,
     print(f"  Training: {backbone} | {num_classes} classes | {epochs} epochs")
     print(f"  Device: {DEVICE} | FP16: {CFG['fp16']}")
     print(f"  Train: {n_train} | Val: {n_val} | Batch: {batch}")
+    print(f"  LR: {lr} | WD: {wd} | ImgSz: {imgsz} | Dropout: {dropout}")
     print(f"{'='*60}\n")
 
     for epoch in range(start_epoch, epochs):
