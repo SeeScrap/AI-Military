@@ -83,13 +83,30 @@ class TankInferenceEngine:
                     nn.Dropout(0.3),
                     nn.Linear(512, num_classes),
                 )
-            elif backbone == "efficientnet_b2":
-                model = models.efficientnet_b2(weights=None)
+            elif backbone.startswith("resnet"):
+                model_fn = getattr(models, backbone, None)
+                if model_fn is None:
+                    raise ValueError(f"Unknown backbone: {backbone}")
+                model = model_fn(weights=None)
+                model.fc = nn.Sequential(
+                    nn.Dropout(0.4),
+                    nn.Linear(model.fc.in_features, 512),
+                    nn.ReLU(),
+                    nn.Dropout(0.3),
+                    nn.Linear(512, num_classes),
+                )
+            elif backbone.startswith("efficientnet_b"):
+                model_fn = getattr(models, backbone, None)
+                if model_fn is None:
+                    raise ValueError(f"Unknown backbone: {backbone}")
+                model = model_fn(weights=None)
                 in_f = model.classifier[1].in_features
                 model.classifier = nn.Sequential(
                     nn.Dropout(0.4),
                     nn.Linear(in_f, num_classes),
                 )
+            else:
+                raise ValueError(f"Unknown backbone in checkpoint: {backbone}")
 
             model.load_state_dict(ckpt["model_state"])
             model.eval()

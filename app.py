@@ -168,7 +168,9 @@ def _run_training(resume: bool, checkpoint_path: str | None, config: dict | None
 
     try:
         # Patch the stop signal for thread-safe stop
+        import importlib
         import train as trainer_module
+        importlib.reload(trainer_module)  # always reload to pick up code changes
         trainer_module._stop_requested = False
         _stop_event.clear()
 
