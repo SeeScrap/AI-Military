@@ -19,6 +19,7 @@ import time
 import uuid
 import shutil
 import threading
+import torch
 import yaml
 import base64
 import cv2
@@ -65,11 +66,37 @@ training_state = {
 }
 _train_thread: threading.Thread | None = None
 _stop_event = threading.Event()
+_state_lock = threading.Lock()
 
 
 # ════════════════════════════════════════════════════════════
 #  Helpers
 # ════════════════════════════════════════════════════════════
+
+def clear_vram():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        import gc
+        gc.collect()
+        _log("VRAM cache cleared.")
+
+
+def validate_dataset() -> tuple[bool, str | None]:
+    """Check if dataset is sufficient for training (min 10 imgs per class)."""
+    counts = get_class_counts()
+    if not counts:
+        return False, "ไม่พบข้อมูลรูปภาพในระบบ กรุณาอัปโหลดก่อน"
+
+    if len(counts) < 2:
+        return False, f"ต้องการอย่างน้อย 2 Class เพื่อเทรน (ปัจจุบันมี {len(counts)})"
+
+    min_required = 10
+    low_classes = [c for c, n in counts.items() if n < min_required]
+    if low_classes:
+        return False, f"บางรุ่นมีรูปน้อยกว่า {min_required} รูป: {', '.join(low_classes)}"
+
+    return True, None
+
 
 def allowed_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXT

@@ -514,5 +514,7 @@ if __name__ == "__main__":
     if args.mode in ("detector", "all"):
         train_detector(resume=args.resume)
 
-ain_detector(resume=args.resume)
+    # Final VRAM cleanup
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
