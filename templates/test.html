@@ -2,16 +2,15 @@
 {% block title %}Tactical Target Test — Tank AI System{% endblock %}
 
 {% block head %}
+<!-- คงค่าสไตล์เฉพาะหน้าเดิมไว้และปรับแต่งระยะห่างให้เสถียรยิ่งขึ้น -->
 <style>
   .test-grid {
     display: grid;
     grid-template-columns: 1.2fr 0.8fr;
-    gap: 20px;
+    gap: 24px;
   }
   @media (max-width: 992px) {
-    .test-grid {
-      grid-template-columns: 1fr;
-    }
+    .test-grid { grid-template-columns: 1fr; gap: 16px; }
   }
   
   .display-panel {
@@ -21,8 +20,8 @@
     justify-content: center;
     position: relative;
     border: 1px solid var(--border-dim);
-    background: rgba(13, 21, 32, 0.8);
-    min-height: 450px;
+    background: rgba(6, 10, 15, 0.9);
+    min-height: 460px;
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow);
@@ -38,42 +37,43 @@
   
   .hud-overlay-text {
     position: absolute;
-    top: 15px;
-    left: 15px;
+    top: 16px;
+    left: 16px;
     font-family: var(--font-mono);
     color: var(--accent-green);
-    text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
     pointer-events: none;
     font-size: 13px;
     line-height: 1.6;
-    background: rgba(8, 13, 17, 0.7);
-    padding: 8px 12px;
+    background: rgba(5, 9, 14, 0.85);
+    padding: 10px 14px;
     border-left: 2px solid var(--accent-green);
     border-radius: 0 var(--radius) var(--radius) 0;
+    backdrop-filter: blur(4px);
   }
   
   .hud-corner {
     position: absolute;
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
     border: 2px solid var(--accent-green);
     pointer-events: none;
-    opacity: 0.6;
+    opacity: 0.5;
   }
-  .hud-corner-tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
-  .hud-corner-tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
-  .hud-corner-bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
-  .hud-corner-br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+  .hud-corner-tl { top: 16px; left: 16px; border-right: none; border-bottom: none; }
+  .hud-corner-tr { top: 16px; right: 16px; border-left: none; border-bottom: none; }
+  .hud-corner-bl { bottom: 16px; left: 16px; border-right: none; border-top: none; }
+  .hud-corner-br { bottom: 16px; right: 16px; border-left: none; border-top: none; }
   
   .target-table {
     width: 100%;
     border-collapse: collapse;
     font-family: var(--font-mono);
     font-size: 13px;
-    margin-top: 10px;
+    margin-top: 12px;
   }
   .target-table th, .target-table td {
-    padding: 10px 12px;
+    padding: 12px;
     text-align: left;
     border-bottom: 1px solid var(--border-dim);
   }
@@ -83,32 +83,22 @@
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 1px;
+    background: rgba(0, 255, 136, 0.02);
   }
-  .target-row {
-    transition: background 0.2s;
-  }
-  .target-row:hover {
-    background: rgba(0, 255, 136, 0.04);
-  }
+  .target-row { transition: background 0.15s ease; }
+  .target-row:hover { background: rgba(0, 255, 136, 0.04); }
   
-  .conf-badge-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+  .conf-badge-container { display: flex; align-items: center; gap: 8px; }
   .conf-bar-track {
     height: 6px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     border-radius: 3px;
     overflow: hidden;
     width: 60px;
     display: inline-block;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
-  .conf-bar-fill {
-    height: 100%;
-    background: var(--accent-green);
-  }
+  .conf-bar-fill { height: 100%; background: var(--accent-green); }
   .conf-bar-fill.amber { background: var(--accent-amber); }
   .conf-bar-fill.red { background: var(--accent-red); }
   .conf-bar-fill.cyan { background: var(--accent-cyan); }
@@ -117,48 +107,45 @@
     background: var(--bg-panel-alt);
     border: 1px solid var(--border-dim);
     border-radius: var(--radius);
-    padding: 15px;
-    margin-bottom: 15px;
+    padding: 16px;
+    margin-bottom: 16px;
   }
   
   .btn-row-test {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 15px;
+    gap: 12px;
+    margin-top: 16px;
   }
   
   .drop-zone-test {
-    border: 2px dashed var(--border-dim);
-    padding: 60px 20px;
+    border: 2px dashed var(--border-bright);
+    padding: 48px 24px;
     text-align: center;
     border-radius: var(--radius-lg);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s ease;
     background: rgba(0, 255, 136, 0.01);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 350px;
+    min-height: 360px;
   }
   .drop-zone-test:hover, .drop-zone-test.drag-over {
     border-color: var(--accent-green);
     background: rgba(0, 255, 136, 0.04);
-    box-shadow: var(--glow-green);
-  }
-  .drop-zone-test .icon {
-    font-size: 40px;
-    margin-bottom: 15px;
-    opacity: 0.8;
-    color: var(--accent-green);
-    filter: drop-shadow(0 0 5px rgba(0, 255, 136, 0.4));
+    box-shadow: inset 0 0 24px rgba(0, 255, 136, 0.05);
   }
   
-  .slider-container {
-    margin-top: 12px;
+  .drop-zone-test-icon {
+    color: var(--accent-green);
+    margin-bottom: 16px;
+    opacity: 0.85;
   }
+  
+  .slider-container { margin-top: 16px; }
   .slider-header {
     display: flex;
     justify-content: space-between;
@@ -166,10 +153,7 @@
     font-size: 11px;
     letter-spacing: 1px;
   }
-  .slider-val {
-    color: var(--accent-green);
-    font-weight: bold;
-  }
+  .slider-val { color: var(--accent-green); font-weight: bold; }
   .range-input {
     width: 100%;
     accent-color: var(--accent-green);
@@ -177,14 +161,14 @@
     border-radius: var(--radius);
     height: 6px;
     outline: none;
-    margin-top: 8px;
+    margin-top: 10px;
     cursor: pointer;
     border: 1px solid var(--border-dim);
   }
   
   .empty-target-state {
     text-align: center;
-    padding: 60px 20px;
+    padding: 48px 16px;
     color: var(--text-secondary);
     font-family: var(--font-mono);
     display: flex;
@@ -192,55 +176,41 @@
     align-items: center;
     gap: 12px;
   }
-  .empty-target-icon {
-    font-size: 32px;
-    opacity: 0.4;
-  }
   
   .badge-type {
     display: inline-block;
-    padding: 2px 6px;
+    padding: 4px 8px;
     font-size: 10px;
     font-weight: 600;
     border-radius: 3px;
     text-transform: uppercase;
     font-family: var(--font-mono);
   }
-  
-  .badge-tank { background: rgba(0, 255, 136, 0.15); color: #00ff88; border: 1px solid rgba(0, 255, 136, 0.3); }
-  .badge-ifv  { background: rgba(0, 200, 255, 0.15); color: #00d4ff; border: 1px solid rgba(0, 200, 255, 0.3); }
-  .badge-apc  { background: rgba(255, 180, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 180, 0, 0.3); }
-  .badge-spg  { background: rgba(255, 80, 80, 0.15); color: #ff3b3b; border: 1px solid rgba(255, 80, 80, 0.3); }
-  .badge-default { background: rgba(180, 180, 180, 0.15); color: #b4b4b4; border: 1px solid rgba(180, 180, 180, 0.3); }
-
-  .re-detect-box {
-    margin-top: 15px;
-    display: flex;
-    justify-content: flex-end;
-  }
-  .re-detect-box button {
-    width: 100%;
-  }
+  .badge-tank { background: rgba(0, 255, 136, 0.12); color: #00ff88; border: 1px solid rgba(0, 255, 136, 0.25); }
+  .badge-ifv  { background: rgba(0, 200, 255, 0.12); color: #00d4ff; border: 1px solid rgba(0, 200, 255, 0.25); }
+  .badge-apc  { background: rgba(255, 180, 0, 0.12); color: #ffb300; border: 1px solid rgba(255, 180, 0, 0.25); }
+  .badge-spg  { background: rgba(255, 80, 80, 0.12); color: #ff3b3b; border: 1px solid rgba(255, 80, 80, 0.25); }
+  .badge-default { background: rgba(148, 167, 184, 0.12); color: #94a7b8; border: 1px solid rgba(148, 167, 184, 0.25); }
 
   .status-tag {
     display: inline-block;
     font-family: var(--font-mono);
     font-size: 10px;
     letter-spacing: 1px;
-    padding: 1px 6px;
+    padding: 2px 8px;
     border-radius: var(--radius);
     text-transform: uppercase;
     font-weight: 600;
   }
   .status-tag.active {
-    background: rgba(0, 255, 136, 0.1);
+    background: rgba(0, 255, 136, 0.08);
     color: var(--accent-green);
     border: 1px solid var(--border-bright);
   }
   .status-tag.inactive {
-    background: rgba(255, 80, 80, 0.1);
+    background: rgba(255, 80, 80, 0.08);
     color: var(--accent-red);
-    border: 1px solid rgba(255, 80, 80, 0.3);
+    border: 1px solid rgba(255, 80, 80, 0.25);
   }
 </style>
 {% endblock %}
@@ -248,7 +218,8 @@
 {% block content %}
 <div class="page-header">
   <h1 class="page-title">
-    <span class="title-accent">◈</span> TACTICAL TARGET TEST
+    <svg class="ui-icon accent-green" viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+    TACTICAL TARGET TEST
   </h1>
   <p class="page-subtitle">จำลองกล้องตรวจจับและจำแนกรายละเอียดเป้าหมายทางยุทธวิธี</p>
 </div>
@@ -263,19 +234,21 @@
         {% if best_exists %}CLASSIFIER ONLINE{% else %}CLASSIFIER OFFLINE{% endif %}
       </span>
     </div>
-    <div class="panel-body" style="padding: 15px;">
+    <div class="panel-body" style="padding: 16px;">
       
       <div class="display-panel" id="display-container">
         <!-- Default State: Upload Area -->
         <div class="drop-zone-test" id="drop-zone" onclick="document.getElementById('file-input').click()">
-          <div class="icon">⬢</div>
-          <div class="drop-title" style="font-weight: 600; letter-spacing: 1px; font-size: 16px; margin-bottom: 5px;">
+          <div class="drop-zone-test-icon">
+            <svg class="ui-icon ui-icon-lg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="drop-title" style="font-weight: 600; letter-spacing: 1px; font-size: 16px; margin-bottom: 6px;">
             กรุณาเลือกหรือลากรูปภาพเป้าหมายมาวางที่นี่
           </div>
-          <div class="drop-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">
+          <div class="drop-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">
             ลากและวางรูปภาพ (JPG, PNG, BMP, WEBP)
           </div>
-          <button class="btn btn-primary" style="padding: 8px 24px; font-size: 12px;">
+          <button class="btn btn-primary">
             เปิดไฟล์ภาพ
           </button>
           <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff" style="display:none" onchange="loadFile(this.files[0])">
@@ -319,8 +292,9 @@
       
       <!-- Parameters -->
       <div class="parameter-box">
-        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--accent-green); margin-bottom: 12px; text-transform: uppercase;">
-          🛡 Detection Tuning
+        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--accent-green); margin-bottom: 12px; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+          <svg class="ui-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
+          Detection Tuning
         </h4>
         
         <!-- Confidence threshold slider -->
@@ -334,23 +308,26 @@
       </div>
 
       <!-- Target Log Section -->
-      <div style="margin-top: 15px;">
-        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid var(--border-dim); padding-bottom: 6px; display:flex; justify-content:space-between;">
-          <span>📋 TARGET LOGS</span>
+      <div style="margin-top: 16px;">
+        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border-dim); padding-bottom: 8px; display:flex; justify-content:space-between; align-items: center;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <svg class="ui-icon" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            TARGET LOGS
+          </span>
           <span class="mono accent-green" id="target-count-badge" style="font-size:11px;">0 FOUND</span>
         </h4>
         
         <div id="target-list-container" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
           <!-- Empty state -->
           <div class="empty-target-state" id="empty-targets">
-            <div class="empty-target-icon">⌖</div>
+            <svg class="ui-icon ui-icon-lg" style="opacity: 0.4;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
             <p>ยังไม่มีการตรวจพบเป้าหมาย</p>
             <span style="font-size: 11px; color: var(--text-muted);">
               กรุณาอัปโหลดรูปภาพเพื่อเริ่มต้นวิเคราะห์หาเป้าหมายทางยุทธวิธี
             </span>
           </div>
           
-          <!-- Targets table (generated dynamically) -->
+          <!-- Targets table -->
           <table class="target-table" id="targets-table" style="display:none;">
             <thead>
               <tr>
@@ -361,7 +338,7 @@
               </tr>
             </thead>
             <tbody id="targets-tbody">
-              <!-- Dynamically populated -->
+              <!-- ปล่อยว่างให้ JS ทำงานตามปกติ -->
             </tbody>
           </table>
         </div>
@@ -372,6 +349,7 @@
 
 </div>
 {% endblock %}
+
 
 {% block scripts %}
 <script>

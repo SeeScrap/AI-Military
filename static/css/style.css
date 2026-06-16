@@ -56,6 +56,46 @@ body {
   background-size: 40px 40px;
 }
 
+/* ── Bento Grid Panels ──────────────────────────────────────── */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s ease;
+}
+.panel:hover {
+  border-color: rgba(0, 255, 136, 0.18);
+}
+.panel-primary { border-color: rgba(0, 255, 136, 0.25); }
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-dim);
+  background: linear-gradient(to right, rgba(0, 255, 136, 0.04), transparent);
+}
+
+/* ── Inline SVG Icons Alignment ────────────────────────────── */
+.ui-icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+.ui-icon-lg {
+  width: 32px;
+  height: 32px;
+}
+
+
 /* ── Scanlines ──────────────────────────────────────────────── */
 .scanlines {
   position: fixed;
