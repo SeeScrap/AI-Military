@@ -188,6 +188,9 @@ def train_classifier(resume: bool = False, checkpoint_path: str | None = None,
 
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(weights_dir, exist_ok=True)
+    
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     # ── Dataset ──────────────────────────────────────────────
     if not os.path.isdir(data_dir) or not os.listdir(data_dir):
@@ -510,4 +513,6 @@ if __name__ == "__main__":
 
     if args.mode in ("detector", "all"):
         train_detector(resume=args.resume)
+
+ain_detector(resume=args.resume)
 

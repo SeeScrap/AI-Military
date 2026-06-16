@@ -248,9 +248,23 @@ def upload():
 
 @app.route("/train/start", methods=["POST"])
 def train_start():
-    global _train_thread
-    if training_state["running"]:
-        return jsonify({"error": "Training already running"}), 400
+    global _train_thread, _inference_engine
+    
+    with _state_lock:
+        if training_state["running"]:
+            return jsonify({"error": "Training already running"}), 400
+
+    # 1. Validate dataset
+    ok, err = validate_dataset()
+    if not ok:
+        return jsonify({"error": err}), 400
+
+    # 2. Clear Inference Engine & VRAM to free memory for trainer
+    if _inference_engine is not None:
+        _log("Releasing Inference Engine to free VRAM...")
+        del _inference_engine
+        _inference_engine = None
+    clear_vram()
 
     data            = request.get_json(silent=True) or {}
     resume          = data.get("resume", False)
@@ -388,6 +402,28 @@ def test():
         img_base64 = base64.b64encode(buffer).decode("utf-8")
         
         return jsonify({
+            "success": True,
+            "width": w,
+            "height": h,
+            "targets": results,
+            "annotated_image": f"data:image/jpeg;base64,{img_base64}"
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Inference failed: {str(e)}"}), 500
+
+
+
+if __name__ == "__main__":
+    port = CFG["web"]["port"]
+    print("=" * 60)
+    print("  Tank Detection AI — Web Training UI")
+    print(f"  Open: http://localhost:{port}")
+    print("=" * 60)
+    app.run(host="0.0.0.0", port=port, threaded=True, debug=False)
+eturn jsonify({
             "success": True,
             "width": w,
             "height": h,

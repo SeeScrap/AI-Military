@@ -201,42 +201,53 @@ function uploadFiles() {
   btn.textContent = "⏳ UPLOADING...";
   result.style.display = "none";
 
-  // Upload in batches of 10
-  const batchSize = 10;
+  // Upload in batches
+  const batchSize = 20; // Increased batch size for efficiency
   let uploaded = 0;
   let allErrors = [];
 
-  async function uploadBatch(startIdx) {
-    const batch = selectedFiles.slice(startIdx, startIdx + batchSize);
-    if (!batch.length) {
-      // Done
-      progress.style.width = "100%";
-      showResult(uploaded, allErrors, className);
-      btn.disabled = false;
-      btn.textContent = "⬆ UPLOAD & LABEL";
-      refreshClassList();
-      return;
+  async function uploadInSequence() {
+    const totalBatches = Math.ceil(selectedFiles.length / batchSize);
+    
+    for (let i = 0; i < selectedFiles.length; i += batchSize) {
+      const batch = selectedFiles.slice(i, i + batchSize);
+      const fd = new FormData();
+      fd.append("class_name", className);
+      batch.forEach(f => fd.append("files", f));
+
+      try {
+        const res = await fetch("/upload", { 
+          method: "POST", 
+          body: fd,
+          // Add timeout to prevent hanging on large uploads
+          signal: AbortSignal.timeout(60000) 
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || `HTTP error! status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        uploaded += data.saved || 0;
+        allErrors = allErrors.concat(data.errors || []);
+      } catch (e) {
+        allErrors.push(`Batch ${Math.floor(i/batchSize)+1} failed: ${e.message}`);
+        // If critical network error, we might want to stop, but here we continue to next batch
+      }
+
+      const pct = Math.min(((i + batch.length) / selectedFiles.length) * 100, 100);
+      progress.style.width = pct + "%";
     }
 
-    const fd = new FormData();
-    fd.append("class_name", className);
-    batch.forEach(f => fd.append("files", f));
-
-    try {
-      const res  = await fetch("/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      uploaded  += data.saved || 0;
-      allErrors  = allErrors.concat(data.errors || []);
-    } catch (e) {
-      allErrors.push("Network error: " + e.toString());
-    }
-
-    const pct = Math.min(((startIdx + batchSize) / selectedFiles.length) * 100, 99);
-    progress.style.width = pct + "%";
-    await uploadBatch(startIdx + batchSize);
+    // Finished all batches
+    showResult(uploaded, allErrors, className);
+    btn.disabled = false;
+    btn.textContent = "⬆ UPLOAD & LABEL";
+    refreshClassList();
   }
 
-  uploadBatch(0);
+  uploadInSequence();
 }
 
 function showResult(saved, errors, className) {
