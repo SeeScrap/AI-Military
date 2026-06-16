@@ -3,31 +3,49 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">
-    <span class="title-accent">◈</span> COMMAND DASHBOARD
-  </h1>
-  <p class="page-subtitle">ภาพรวมระบบ AI ตรวจจับยานเกราะ</p>
+  <div class="page-header-left">
+    <h1 class="page-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="color:var(--accent-green)"><rect x="2" y="8" width="20" height="12" rx="2"/><path d="M6 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/><circle cx="12" cy="14" r="2"/><path d="M2 13h4M18 13h4"/></svg>
+      COMMAND DASHBOARD
+    </h1>
+    <p class="page-subtitle">ระบบ AI ตรวจจับยานเกราะ — Real-time Monitoring</p>
+  </div>
+  <div class="page-header-right">
+    <div class="sys-clock" id="sys-clock">--:--:--</div>
+  </div>
 </div>
 
 <!-- ── Stat cards ─────────────────────────────────────────── -->
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-icon">🖼</div>
+    <div class="stat-icon-wrap">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    </div>
     <div class="stat-value" id="stat-total">{{ total_imgs }}</div>
     <div class="stat-label">TOTAL IMAGES</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon">🎯</div>
+    <div class="stat-icon-wrap">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </div>
     <div class="stat-value">{{ counts | length }}</div>
     <div class="stat-label">VEHICLE CLASSES</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon">💾</div>
+    <div class="stat-icon-wrap">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+    </div>
     <div class="stat-value">{{ checkpoints | length }}</div>
     <div class="stat-label">CHECKPOINTS</div>
   </div>
   <div class="stat-card {% if best_exists %}card-success{% endif %}">
-    <div class="stat-icon">{% if best_exists %}✓{% else %}✗{% endif %}</div>
+    <div class="stat-icon-wrap {% if best_exists %}icon-success{% endif %}">
+      {% if best_exists %}
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+      {% else %}
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      {% endif %}
+    </div>
     <div class="stat-value">{{ "READY" if best_exists else "NONE" }}</div>
     <div class="stat-label">TRAINED MODEL</div>
   </div>
@@ -39,7 +57,10 @@
   <!-- Training Control Panel -->
   <div class="panel panel-primary">
     <div class="panel-header">
-      <span class="panel-title">⚙ TRAINING CONTROL</span>
+      <span class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        TRAINING CONTROL
+      </span>
       <span class="status-badge" id="train-badge">STANDBY</span>
     </div>
     <div class="panel-body">
@@ -48,14 +69,14 @@
       <div class="progress-section">
         <div class="progress-label">
           <span>EPOCH PROGRESS</span>
-          <span id="epoch-label">0 / 0</span>
+          <span id="epoch-label" class="mono">0 / 0</span>
         </div>
         <div class="progress-bar-track">
           <div class="progress-bar-fill" id="epoch-progress" style="width:0%"></div>
         </div>
         <div class="progress-label" style="margin-top:8px">
           <span>BEST ACCURACY</span>
-          <span id="best-acc" class="accent-green">{{ (training.best_acc * 100) | round(1) }}%</span>
+          <span id="best-acc" class="accent-green mono">{{ (training.best_acc * 100) | round(1) }}%</span>
         </div>
       </div>
 
@@ -75,9 +96,194 @@
         </div>
       </div>
 
+      <!-- ── Custom Training Config ─────────────────────────── -->
+      <div class="config-section">
+        <button class="config-toggle" id="config-toggle-btn" onclick="toggleConfig()" aria-expanded="false" aria-controls="config-panel">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          CUSTOM PARAMETERS
+          <svg class="config-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        <div id="config-panel" class="config-panel" style="display:none">
+          <div class="config-grid">
+
+            <!-- Model Architecture -->
+            <div class="config-group">
+              <div class="config-group-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                ARCHITECTURE
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-backbone">Backbone Model</label>
+                <select class="form-select" id="cfg-backbone" name="backbone">
+                  <option value="efficientnet_b0">EfficientNet-B0 (fast)</option>
+                  <option value="efficientnet_b3" selected>EfficientNet-B3 (balanced)</option>
+                  <option value="efficientnet_b5">EfficientNet-B5 (accurate)</option>
+                  <option value="resnet50">ResNet-50</option>
+                  <option value="resnet101">ResNet-101</option>
+                  <option value="mobilenet_v3">MobileNet-V3 (edge deploy)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-pretrained">Pretrained Weights</label>
+                <select class="form-select" id="cfg-pretrained" name="pretrained">
+                  <option value="imagenet" selected>ImageNet</option>
+                  <option value="none">None (random init)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Training Hyperparams -->
+            <div class="config-group">
+              <div class="config-group-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                HYPERPARAMETERS
+              </div>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label" for="cfg-epochs">Epochs</label>
+                  <input class="form-input" type="number" id="cfg-epochs" name="epochs" value="30" min="1" max="500">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="cfg-batch">Batch Size</label>
+                  <select class="form-select" id="cfg-batch" name="batch_size">
+                    <option value="8">8</option>
+                    <option value="16">16</option>
+                    <option value="32" selected>32</option>
+                    <option value="64">64</option>
+                    <option value="128">128</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label" for="cfg-lr">Learning Rate</label>
+                  <input class="form-input" type="number" id="cfg-lr" name="lr" value="0.001" min="0.00001" max="0.1" step="0.0001">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="cfg-wd">Weight Decay</label>
+                  <input class="form-input" type="number" id="cfg-wd" name="weight_decay" value="0.0001" min="0" max="0.1" step="0.00001">
+                </div>
+              </div>
+            </div>
+
+            <!-- Optimizer & Scheduler -->
+            <div class="config-group">
+              <div class="config-group-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                OPTIMIZER
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-optimizer">Optimizer</label>
+                <select class="form-select" id="cfg-optimizer" name="optimizer">
+                  <option value="adamw" selected>AdamW</option>
+                  <option value="adam">Adam</option>
+                  <option value="sgd">SGD + Momentum</option>
+                  <option value="rmsprop">RMSProp</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-scheduler">LR Scheduler</label>
+                <select class="form-select" id="cfg-scheduler" name="scheduler">
+                  <option value="cosine" selected>Cosine Annealing</option>
+                  <option value="step">Step LR</option>
+                  <option value="plateau">ReduceLROnPlateau</option>
+                  <option value="onecycle">OneCycleLR</option>
+                  <option value="none">None</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Data & Regularization -->
+            <div class="config-group">
+              <div class="config-group-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                DATA & REGULARIZATION
+              </div>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label" for="cfg-imgsize">Image Size (px)</label>
+                  <select class="form-select" id="cfg-imgsize" name="img_size">
+                    <option value="128">128</option>
+                    <option value="224" selected>224</option>
+                    <option value="256">256</option>
+                    <option value="384">384</option>
+                    <option value="512">512</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="cfg-dropout">Dropout</label>
+                  <input class="form-input" type="number" id="cfg-dropout" name="dropout" value="0.3" min="0" max="0.9" step="0.05">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-val-split">Val Split</label>
+                <div class="slider-row">
+                  <input type="range" id="cfg-val-split" name="val_split" min="5" max="40" value="20" step="5" oninput="document.getElementById('val-split-out').textContent=this.value+'%'">
+                  <span class="slider-val mono" id="val-split-out">20%</span>
+                </div>
+              </div>
+              <div class="augment-checks">
+                <label class="check-item">
+                  <input type="checkbox" id="aug-flip" name="aug_flip" checked>
+                  <span>Horizontal Flip</span>
+                </label>
+                <label class="check-item">
+                  <input type="checkbox" id="aug-rotate" name="aug_rotate" checked>
+                  <span>Random Rotate</span>
+                </label>
+                <label class="check-item">
+                  <input type="checkbox" id="aug-color" name="aug_color">
+                  <span>Color Jitter</span>
+                </label>
+                <label class="check-item">
+                  <input type="checkbox" id="aug-mixup" name="aug_mixup">
+                  <span>MixUp</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Early Stopping & Saving -->
+            <div class="config-group config-group-wide">
+              <div class="config-group-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                EARLY STOPPING & SAVING
+              </div>
+              <div class="form-row-3">
+                <div class="form-group">
+                  <label class="form-label" for="cfg-patience">Patience (epochs)</label>
+                  <input class="form-input" type="number" id="cfg-patience" name="patience" value="10" min="1" max="100">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="cfg-ckpt-freq">Save Every N Epochs</label>
+                  <input class="form-input" type="number" id="cfg-ckpt-freq" name="ckpt_freq" value="5" min="1" max="100">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="cfg-monitor">Monitor Metric</label>
+                  <select class="form-select" id="cfg-monitor" name="monitor">
+                    <option value="val_acc" selected>Val Accuracy</option>
+                    <option value="val_loss">Val Loss</option>
+                    <option value="f1">F1 Score</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- .config-grid -->
+
+          <div class="config-actions">
+            <button class="btn btn-ghost btn-sm" onclick="resetConfig()">↺ Reset Defaults</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportConfig()">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export Config
+            </button>
+          </div>
+        </div><!-- #config-panel -->
+      </div>
+
       <!-- Checkpoint selector for resume -->
       <div class="form-group" id="resume-section" style="display:none">
-        <label class="form-label">เลือก Checkpoint สำหรับ Resume:</label>
+        <label class="form-label" for="ckpt-select">เลือก Checkpoint สำหรับ Resume</label>
         <select class="form-select" id="ckpt-select">
           <option value="">Auto (ล่าสุด)</option>
           {% for ckpt in checkpoints %}
@@ -93,28 +299,38 @@
         <button class="btn btn-primary" id="btn-train"
                 onclick="startTraining(false)"
                 {% if training.running %}disabled{% endif %}>
-          ▶ START TRAINING
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          START TRAINING
         </button>
         <button class="btn btn-secondary" id="btn-resume"
                 onclick="toggleResumePanel()"
                 {% if not checkpoints %}disabled{% endif %}>
-          ↺ RESUME
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg>
+          RESUME
         </button>
         <button class="btn btn-danger" id="btn-stop"
                 onclick="stopTraining()"
                 {% if not training.running %}disabled{% endif %}>
-          ■ STOP
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          STOP
         </button>
       </div>
       <div id="train-error" class="error-msg" style="display:none"></div>
+
     </div>
   </div>
 
   <!-- Dataset Overview -->
   <div class="panel">
     <div class="panel-header">
-      <span class="panel-title">📊 DATASET OVERVIEW</span>
-      <a href="{{ url_for('upload') }}" class="btn btn-sm btn-primary">+ ADD DATA</a>
+      <span class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        DATASET OVERVIEW
+      </span>
+      <a href="{{ url_for('upload') }}" class="btn btn-sm btn-primary" aria-label="Add training data">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        ADD DATA
+      </a>
     </div>
     <div class="panel-body">
       {% if counts %}
@@ -133,7 +349,7 @@
       </div>
       {% else %}
       <div class="empty-state">
-        <div class="empty-icon">📁</div>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true" style="color:var(--text-muted);margin-bottom:10px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <p>ยังไม่มีข้อมูล</p>
         <a href="{{ url_for('upload') }}" class="btn btn-primary btn-sm">อัปโหลดรูปภาพ</a>
       </div>
@@ -144,11 +360,17 @@
   <!-- Training Log -->
   <div class="panel panel-wide">
     <div class="panel-header">
-      <span class="panel-title">📋 TRAINING LOG</span>
-      <button class="btn btn-sm btn-ghost" onclick="clearLog()">CLEAR</button>
+      <span class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        TRAINING LOG
+      </span>
+      <button class="btn btn-sm btn-ghost" onclick="clearLog()" aria-label="Clear log">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        CLEAR
+      </button>
     </div>
     <div class="panel-body">
-      <div class="log-box" id="log-box">
+      <div class="log-box" id="log-box" role="log" aria-live="polite" aria-label="Training log output">
         {% for line in training.log %}
         <div class="log-line">{{ line }}</div>
         {% endfor %}
@@ -163,42 +385,307 @@
   {% if best_exists %}
   <div class="panel panel-wide">
     <div class="panel-header">
-      <span class="panel-title">📈 TRAINING HISTORY</span>
-      <button class="btn btn-sm btn-ghost" onclick="reloadPlot()">↺ RELOAD</button>
+      <span class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        TRAINING HISTORY
+      </span>
+      <button class="btn btn-sm btn-ghost" onclick="reloadPlot()" aria-label="Reload training history plot">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg>
+        RELOAD
+      </button>
     </div>
     <div class="panel-body">
       <img id="history-plot"
            src="/models/weights/training_history.png"
-           alt="Training history" class="history-plot"
-           onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s">
+           alt="Graph showing training and validation loss/accuracy over epochs"
+           class="history-plot"
+           onload="this.style.opacity=1"
+           style="opacity:0;transition:opacity 0.3s">
     </div>
   </div>
   {% endif %}
 
 </div><!-- .dashboard-grid -->
+
+<!-- Extra CSS for new elements -->
+<style>
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+.page-header-left { display: flex; flex-direction: column; gap: 4px; }
+.page-header-right { display: flex; align-items: center; padding-top: 4px; }
+.sys-clock {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 3px;
+  border: 1px solid var(--border-dim);
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+
+/* Config section */
+.config-section {
+  margin-top: 20px;
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.config-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0,212,255,0.04);
+  border: none;
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.2s;
+}
+.config-toggle:hover { background: rgba(0,212,255,0.09); }
+.config-chevron {
+  margin-left: auto;
+  transition: transform 0.25s;
+  color: var(--text-muted);
+}
+.config-toggle[aria-expanded="true"] .config-chevron { transform: rotate(180deg); }
+
+.config-panel {
+  padding: 16px;
+  border-top: 1px solid var(--border-dim);
+  background: rgba(0,0,0,0.15);
+}
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.config-group {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.config-group-wide { grid-column: 1 / -1; }
+.config-group-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 3px;
+  background: var(--border-dim);
+  border-radius: 2px;
+  outline: none;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  cursor: pointer;
+  border: 2px solid var(--bg-base);
+}
+.slider-val {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  min-width: 36px;
+  text-align: right;
+}
+
+.augment-checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.check-item input[type="checkbox"] {
+  width: 14px; height: 14px;
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+}
+
+.config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-dim);
+}
+
+/* Stat icon */
+.stat-icon-wrap {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: rgba(0,255,136,0.06);
+  border: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  color: var(--accent-green);
+}
+.stat-icon-wrap.icon-success { color: var(--accent-green); border-color: rgba(0,255,136,0.3); }
+.card-success .stat-icon-wrap { background: rgba(0,255,136,0.1); }
+
+@media (max-width: 700px) {
+  .config-grid { grid-template-columns: 1fr; }
+  .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
+  .augment-checks { grid-template-columns: 1fr 1fr; }
+  .config-group-wide { grid-column: auto; }
+  .page-header { flex-direction: column; gap: 10px; }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-let resumePanelOpen = false;
+/* ── Clock ──────────────────────────────────────────────── */
+function tickClock() {
+  const el = document.getElementById("sys-clock");
+  if (el) el.textContent = new Date().toLocaleTimeString("en-GB", {hour12:false});
+}
+tickClock();
+setInterval(tickClock, 1000);
 
+/* ── Config Panel ───────────────────────────────────────── */
+let configOpen = false;
+function toggleConfig() {
+  configOpen = !configOpen;
+  const panel = document.getElementById("config-panel");
+  const btn   = document.getElementById("config-toggle-btn");
+  panel.style.display = configOpen ? "block" : "none";
+  btn.setAttribute("aria-expanded", configOpen ? "true" : "false");
+}
+
+function collectConfig() {
+  const ids = [
+    "cfg-backbone","cfg-pretrained","cfg-epochs","cfg-batch",
+    "cfg-lr","cfg-wd","cfg-optimizer","cfg-scheduler",
+    "cfg-imgsize","cfg-dropout","cfg-val-split",
+    "cfg-patience","cfg-ckpt-freq","cfg-monitor"
+  ];
+  const cfg = {};
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) cfg[el.name] = el.value;
+  });
+  cfg.augmentations = {
+    flip:   document.getElementById("aug-flip")?.checked   ?? true,
+    rotate: document.getElementById("aug-rotate")?.checked ?? true,
+    color:  document.getElementById("aug-color")?.checked  ?? false,
+    mixup:  document.getElementById("aug-mixup")?.checked  ?? false,
+  };
+  return cfg;
+}
+
+const DEFAULTS = {
+  backbone:"efficientnet_b3", pretrained:"imagenet",
+  epochs:30, batch_size:32, lr:0.001, weight_decay:0.0001,
+  optimizer:"adamw", scheduler:"cosine",
+  img_size:224, dropout:0.3, val_split:20,
+  patience:10, ckpt_freq:5, monitor:"val_acc",
+  aug_flip:true, aug_rotate:true, aug_color:false, aug_mixup:false
+};
+
+function resetConfig() {
+  document.getElementById("cfg-backbone").value   = DEFAULTS.backbone;
+  document.getElementById("cfg-pretrained").value = DEFAULTS.pretrained;
+  document.getElementById("cfg-epochs").value     = DEFAULTS.epochs;
+  document.getElementById("cfg-batch").value      = DEFAULTS.batch_size;
+  document.getElementById("cfg-lr").value         = DEFAULTS.lr;
+  document.getElementById("cfg-wd").value         = DEFAULTS.weight_decay;
+  document.getElementById("cfg-optimizer").value  = DEFAULTS.optimizer;
+  document.getElementById("cfg-scheduler").value  = DEFAULTS.scheduler;
+  document.getElementById("cfg-imgsize").value    = DEFAULTS.img_size;
+  document.getElementById("cfg-dropout").value    = DEFAULTS.dropout;
+  const slider = document.getElementById("cfg-val-split");
+  slider.value = DEFAULTS.val_split;
+  document.getElementById("val-split-out").textContent = DEFAULTS.val_split + "%";
+  document.getElementById("cfg-patience").value   = DEFAULTS.patience;
+  document.getElementById("cfg-ckpt-freq").value  = DEFAULTS.ckpt_freq;
+  document.getElementById("cfg-monitor").value    = DEFAULTS.monitor;
+  document.getElementById("aug-flip").checked     = DEFAULTS.aug_flip;
+  document.getElementById("aug-rotate").checked   = DEFAULTS.aug_rotate;
+  document.getElementById("aug-color").checked    = DEFAULTS.aug_color;
+  document.getElementById("aug-mixup").checked    = DEFAULTS.aug_mixup;
+}
+
+function exportConfig() {
+  const cfg = collectConfig();
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "train_config.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── Resume Panel ───────────────────────────────────────── */
+let resumePanelOpen = false;
 function toggleResumePanel() {
   resumePanelOpen = !resumePanelOpen;
   document.getElementById("resume-section").style.display =
     resumePanelOpen ? "block" : "none";
   if (resumePanelOpen) {
-    document.getElementById("btn-resume").textContent = "↩ CANCEL RESUME";
-    document.getElementById("btn-train").textContent  = "↺ START RESUME";
+    document.getElementById("btn-resume").innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> CANCEL RESUME';
+    document.getElementById("btn-train").innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg> START RESUME';
     document.getElementById("btn-train").onclick = () => startTraining(true);
   } else {
-    document.getElementById("btn-resume").textContent = "↺ RESUME";
-    document.getElementById("btn-train").textContent  = "▶ START TRAINING";
+    document.getElementById("btn-resume").innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg> RESUME';
+    document.getElementById("btn-train").innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> START TRAINING';
     document.getElementById("btn-train").onclick = () => startTraining(false);
   }
 }
 
+/* ── Training ───────────────────────────────────────────── */
 function startTraining(resume) {
-  const ckpt = document.getElementById("ckpt-select")?.value || null;
+  const ckpt   = document.getElementById("ckpt-select")?.value || null;
+  const config = collectConfig();
   document.getElementById("btn-train").disabled = true;
   document.getElementById("btn-stop").disabled  = false;
   document.getElementById("train-error").style.display = "none";
@@ -206,7 +693,11 @@ function startTraining(resume) {
   fetch("/train/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resume: resume, checkpoint: ckpt || null }),
+    body: JSON.stringify({
+      resume: resume,
+      checkpoint: ckpt || null,
+      config: config
+    }),
   })
   .then(r => r.json())
   .then(d => {
@@ -242,7 +733,7 @@ function reloadPlot() {
   if (img) img.src = "/models/weights/training_history.png?t=" + Date.now();
 }
 
-// ── Server-Sent Events ─────────────────────────────────────
+/* ── SSE ────────────────────────────────────────────────── */
 function startSSE() {
   const es = new EventSource("/train/stream");
   es.onmessage = (e) => {
@@ -270,8 +761,7 @@ function updateDashboard(d) {
     document.getElementById("epoch-label").textContent = `${d.epoch} / ${d.total}`;
   }
   if (d.best_acc !== null)
-    document.getElementById("best-acc").textContent =
-      (d.best_acc * 100).toFixed(1) + "%";
+    document.getElementById("best-acc").textContent = (d.best_acc * 100).toFixed(1) + "%";
   if (d.train_loss !== null)
     document.getElementById("m-train-loss").textContent = d.train_loss?.toFixed(4) ?? "—";
   if (d.val_loss !== null)
@@ -282,7 +772,9 @@ function updateDashboard(d) {
 
   const badge = document.getElementById("train-badge");
   badge.textContent = d.running ? "TRAINING" : (d.error ? "ERROR" : "COMPLETE");
-  badge.className = "status-badge " + (d.running ? "badge-active" : (d.error ? "badge-error" : "badge-done"));
+  badge.className = "status-badge " + (
+    d.running ? "badge-active" : (d.error ? "badge-error" : "badge-done")
+  );
 
   if (d.log && d.log.length) {
     const box = document.getElementById("log-box");
@@ -297,11 +789,10 @@ function updateDashboard(d) {
 
   if (d.error) showError(d.error);
 
-  document.getElementById("nav-status-text").textContent =
-    d.running ? "TRAINING" : "STANDBY";
+  const navStatus = document.getElementById("nav-status-text");
+  if (navStatus) navStatus.textContent = d.running ? "TRAINING" : "STANDBY";
 }
 
-// Resume SSE if training was already running on page load
 {% if training.running %}
 startSSE();
 document.getElementById("btn-train").disabled = true;
