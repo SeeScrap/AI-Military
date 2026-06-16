@@ -2,126 +2,566 @@
 {% block title %}Dashboard — Tank AI System{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-header-left">
-    <h1 class="page-title">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="color:var(--accent-green)"><rect x="2" y="8" width="20" height="12" rx="2"/><path d="M6 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/><circle cx="12" cy="14" r="2"/><path d="M2 13h4M18 13h4"/></svg>
-      COMMAND DASHBOARD
-    </h1>
-    <p class="page-subtitle">ระบบ AI ตรวจจับยานเกราะ — Real-time Monitoring</p>
+
+<style>
+/* ── Page layout ─────────────────────────────────────── */
+.db-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.db-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.db-heading {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.db-heading-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+  flex-shrink: 0;
+}
+.db-clock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  text-align: right;
+}
+.db-date {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-top: 3px;
+  letter-spacing: 1px;
+}
+
+/* ── KPI strip ───────────────────────────────────────── */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border-dim);
+  border: 1px solid var(--border-dim);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.kpi-cell {
+  background: var(--bg-panel);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: background 0.2s;
+}
+.kpi-cell:hover { background: var(--bg-panel-alt); }
+.kpi-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: rgba(0,255,136,0.07);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent-green);
+}
+.kpi-icon.kpi-icon-amber { background: rgba(255,179,0,0.07); color: var(--accent-amber); }
+.kpi-icon.kpi-icon-cyan  { background: rgba(0,212,255,0.07); color: var(--accent-cyan); }
+.kpi-icon.kpi-icon-red   { background: rgba(255,59,59,0.07);  color: var(--accent-red); }
+.kpi-icon.kpi-icon-ok    { background: rgba(0,255,136,0.12);  color: var(--accent-green); }
+.kpi-body {}
+.kpi-val {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.kpi-lbl {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ── Two-column grid ─────────────────────────────────── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 16px;
+}
+.span-2 { grid-column: 1 / -1; }
+
+/* ── Card ────────────────────────────────────────────── */
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.card-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  opacity: 0.7;
+}
+.card-body { padding: 20px; }
+
+/* ── Status badge ────────────────────────────────────── */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.badge-standby { color: var(--text-muted);    border-color: var(--border-dim); background: transparent; }
+.badge-active  { color: var(--accent-green);  border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.08); }
+.badge-error   { color: var(--accent-red);    border-color: rgba(255,59,59,0.35);  background: rgba(255,59,59,0.08); }
+.badge-done    { color: var(--accent-cyan);   border-color: rgba(0,212,255,0.35);  background: rgba(0,212,255,0.08); }
+
+/* ── Progress ────────────────────────────────────────── */
+.prog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 7px;
+}
+.prog-row span:last-child { font-family: var(--font-mono); color: var(--text-secondary); }
+.prog-track {
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green) 0%, #00ffaa 100%);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* ── Live metrics ────────────────────────────────────── */
+.metrics-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.metric-tile {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: center;
+}
+.metric-num {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.metric-num.hi { color: var(--accent-green); }
+.metric-tag {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ── Best acc row ────────────────────────────────────── */
+.acc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.acc-label { font-size: 11px; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; }
+.acc-val   { font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--accent-green); }
+
+/* ── Config accordion ────────────────────────────────── */
+.accordion {
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.accordion-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  background: rgba(0,212,255,0.03);
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  text-align: left;
+}
+.accordion-trigger:hover { background: rgba(0,212,255,0.07); color: var(--accent-cyan); }
+.accordion-trigger[aria-expanded="true"] { color: var(--accent-cyan); }
+.acc-arrow {
+  margin-left: auto;
+  color: var(--text-muted);
+  transition: transform 0.25s;
+}
+.accordion-trigger[aria-expanded="true"] .acc-arrow { transform: rotate(180deg); }
+.accordion-body {
+  display: none;
+  padding: 16px;
+  border-top: 1px solid var(--border-dim);
+  background: rgba(0,0,0,0.2);
+}
+.accordion-body.open { display: block; }
+
+/* Config grid inside accordion */
+.cfg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.cfg-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  padding: 12px;
+}
+.cfg-section-wide { grid-column: 1 / -1; }
+.cfg-section-head {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+/* slider */
+.sl-row { display: flex; align-items: center; gap: 8px; }
+.sl-row input[type=range] {
+  flex: 1; -webkit-appearance: none;
+  height: 3px; background: var(--border-dim); border-radius: 2px; outline: none; cursor: pointer;
+}
+.sl-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px;
+  border-radius: 50%; background: var(--accent-cyan);
+  cursor: pointer; border: 2px solid var(--bg-base);
+}
+.sl-out { font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan); min-width: 34px; text-align: right; }
+
+/* aug checkboxes */
+.aug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
+.aug-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-secondary); cursor: pointer;
+}
+.aug-label input[type=checkbox] { width: 13px; height: 13px; accent-color: var(--accent-cyan); cursor: pointer; }
+
+.cfg-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--border-dim);
+}
+
+/* ── Checkpoint resume ───────────────────────────────── */
+.resume-box {
+  display: none;
+  margin-bottom: 16px;
+}
+
+/* ── Action buttons ──────────────────────────────────── */
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px;
+  border-radius: 7px;
+  border: 1px solid;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.abtn-start {
+  background: rgba(0,255,136,0.08);
+  border-color: rgba(0,255,136,0.4);
+  color: var(--accent-green);
+}
+.abtn-start:hover:not(:disabled) { background: rgba(0,255,136,0.16); box-shadow: 0 0 16px rgba(0,255,136,0.15); }
+.abtn-resume {
+  background: rgba(0,212,255,0.06);
+  border-color: rgba(0,212,255,0.35);
+  color: var(--accent-cyan);
+}
+.abtn-resume:hover:not(:disabled) { background: rgba(0,212,255,0.14); }
+.abtn-stop {
+  background: rgba(255,59,59,0.06);
+  border-color: rgba(255,59,59,0.35);
+  color: var(--accent-red);
+}
+.abtn-stop:hover:not(:disabled) { background: rgba(255,59,59,0.14); }
+
+.err-box {
+  display: none;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(255,59,59,0.07);
+  border: 1px solid rgba(255,59,59,0.25);
+  color: var(--accent-red);
+  font-size: 12px;
+}
+
+/* ── Dataset panel ───────────────────────────────────── */
+.ds-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.ds-row:last-child { border-bottom: none; }
+.ds-name { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-bar-track { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; }
+.ds-bar-fill  { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #005533, var(--accent-green)); transition: width 0.4s; }
+.ds-cnt { font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); min-width: 28px; text-align: right; }
+.ds-scroll { max-height: 300px; overflow-y: auto; }
+
+.empty-center { text-align: center; padding: 40px 0; color: var(--text-muted); }
+.empty-center svg { opacity: 0.25; margin-bottom: 12px; }
+.empty-center p { font-size: 13px; margin-bottom: 14px; }
+
+/* ── Log ─────────────────────────────────────────────── */
+.log-terminal {
+  background: #050a0f;
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  padding: 14px;
+  height: 200px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.log-line { color: #5a7080; }
+.log-line:last-child { color: var(--accent-green); }
+.log-line.muted { color: var(--text-muted); }
+
+/* ── Plot ────────────────────────────────────────────── */
+.plot-img {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border-dim);
+  display: block;
+  background: #050a0f;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .kpi-strip  { grid-template-columns: repeat(2, 1fr); }
+  .main-grid  { grid-template-columns: 1fr; }
+  .span-2     { grid-column: auto; }
+  .cfg-grid   { grid-template-columns: 1fr; }
+  .cfg-section-wide { grid-column: auto; }
+}
+@media (max-width: 560px) {
+  .kpi-strip  { grid-template-columns: 1fr 1fr; }
+  .action-row { grid-template-columns: 1fr 1fr 1fr; }
+  .metrics-3  { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+
+<!-- ── Header ─────────────────────────────────────────────── -->
+<div class="db-header">
+  <div>
+    <div class="db-title">SYSTEM OVERVIEW</div>
+    <div class="db-heading">
+      <span class="db-heading-dot"></span>
+      TANK AI DASHBOARD
+    </div>
   </div>
-  <div class="page-header-right">
-    <div class="sys-clock" id="sys-clock">--:--:--</div>
+  <div class="db-clock">
+    <div id="sys-time">--:--:--</div>
+    <div class="db-date" id="sys-date">---</div>
   </div>
 </div>
 
-<!-- ── Stat cards ─────────────────────────────────────────── -->
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon-wrap">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+<!-- ── KPI strip ──────────────────────────────────────────── -->
+<div class="kpi-strip">
+  <div class="kpi-cell">
+    <div class="kpi-icon">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
     </div>
-    <div class="stat-value" id="stat-total">{{ total_imgs }}</div>
-    <div class="stat-label">TOTAL IMAGES</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon-wrap">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <div class="kpi-body">
+      <div class="kpi-val" id="stat-total">{{ total_imgs }}</div>
+      <div class="kpi-lbl">Total Images</div>
     </div>
-    <div class="stat-value">{{ counts | length }}</div>
-    <div class="stat-label">VEHICLE CLASSES</div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon-wrap">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+  <div class="kpi-cell">
+    <div class="kpi-icon kpi-icon-amber">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
     </div>
-    <div class="stat-value">{{ checkpoints | length }}</div>
-    <div class="stat-label">CHECKPOINTS</div>
+    <div class="kpi-body">
+      <div class="kpi-val">{{ counts | length }}</div>
+      <div class="kpi-lbl">Vehicle Classes</div>
+    </div>
   </div>
-  <div class="stat-card {% if best_exists %}card-success{% endif %}">
-    <div class="stat-icon-wrap {% if best_exists %}icon-success{% endif %}">
+  <div class="kpi-cell">
+    <div class="kpi-icon kpi-icon-cyan">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+    </div>
+    <div class="kpi-body">
+      <div class="kpi-val">{{ checkpoints | length }}</div>
+      <div class="kpi-lbl">Checkpoints</div>
+    </div>
+  </div>
+  <div class="kpi-cell">
+    <div class="kpi-icon {% if best_exists %}kpi-icon-ok{% else %}kpi-icon-red{% endif %}">
       {% if best_exists %}
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
       {% else %}
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       {% endif %}
     </div>
-    <div class="stat-value">{{ "READY" if best_exists else "NONE" }}</div>
-    <div class="stat-label">TRAINED MODEL</div>
+    <div class="kpi-body">
+      <div class="kpi-val">{{ "Ready" if best_exists else "None" }}</div>
+      <div class="kpi-lbl">Trained Model</div>
+    </div>
   </div>
 </div>
 
-<!-- ── Main grid ───────────────────────────────────────────── -->
-<div class="dashboard-grid">
+<!-- ── Main grid ──────────────────────────────────────────── -->
+<div class="main-grid">
 
-  <!-- Training Control Panel -->
-  <div class="panel panel-primary">
-    <div class="panel-header">
-      <span class="panel-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-        TRAINING CONTROL
+  <!-- LEFT: Training control -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">
+        <span class="card-title-dot"></span>
+        Training Control
       </span>
-      <span class="status-badge" id="train-badge">STANDBY</span>
+      <span class="badge badge-standby" id="train-badge">Standby</span>
     </div>
-    <div class="panel-body">
+    <div class="card-body">
 
-      <!-- Progress bar -->
-      <div class="progress-section">
-        <div class="progress-label">
-          <span>EPOCH PROGRESS</span>
-          <span id="epoch-label" class="mono">0 / 0</span>
-        </div>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="epoch-progress" style="width:0%"></div>
-        </div>
-        <div class="progress-label" style="margin-top:8px">
-          <span>BEST ACCURACY</span>
-          <span id="best-acc" class="accent-green mono">{{ (training.best_acc * 100) | round(1) }}%</span>
-        </div>
+      <!-- Epoch progress -->
+      <div class="prog-row">
+        <span>Epoch Progress</span>
+        <span id="epoch-label" class="mono">0 / 0</span>
+      </div>
+      <div class="prog-track">
+        <div class="prog-fill" id="epoch-progress" style="width:0%"></div>
+      </div>
+
+      <!-- Best acc -->
+      <div class="acc-row">
+        <span class="acc-label">Best Accuracy</span>
+        <span class="acc-val" id="best-acc">{{ (training.best_acc * 100) | round(1) }}%</span>
       </div>
 
       <!-- Live metrics -->
-      <div class="metrics-row">
-        <div class="metric-box">
-          <div class="metric-val" id="m-train-loss">—</div>
-          <div class="metric-lbl">TRAIN LOSS</div>
+      <div class="metrics-3">
+        <div class="metric-tile">
+          <div class="metric-num" id="m-train-loss">—</div>
+          <div class="metric-tag">Train Loss</div>
         </div>
-        <div class="metric-box">
-          <div class="metric-val" id="m-val-loss">—</div>
-          <div class="metric-lbl">VAL LOSS</div>
+        <div class="metric-tile">
+          <div class="metric-num" id="m-val-loss">—</div>
+          <div class="metric-tag">Val Loss</div>
         </div>
-        <div class="metric-box">
-          <div class="metric-val accent-green" id="m-val-acc">—</div>
-          <div class="metric-lbl">VAL ACC</div>
+        <div class="metric-tile">
+          <div class="metric-num hi" id="m-val-acc">—</div>
+          <div class="metric-tag">Val Acc</div>
         </div>
       </div>
 
-      <!-- ── Custom Training Config ─────────────────────────── -->
-      <div class="config-section">
-        <button class="config-toggle" id="config-toggle-btn" onclick="toggleConfig()" aria-expanded="false" aria-controls="config-panel">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-          CUSTOM PARAMETERS
-          <svg class="config-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      <!-- Custom config accordion -->
+      <div class="accordion">
+        <button class="accordion-trigger" id="cfg-btn" aria-expanded="false" aria-controls="cfg-body" onclick="toggleCfg()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          Custom Parameters
+          <svg class="acc-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
+        <div class="accordion-body" id="cfg-body">
+          <div class="cfg-grid">
 
-        <div id="config-panel" class="config-panel" style="display:none">
-          <div class="config-grid">
-
-            <!-- Model Architecture -->
-            <div class="config-group">
-              <div class="config-group-label">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                ARCHITECTURE
-              </div>
+            <!-- Architecture -->
+            <div class="cfg-section">
+              <div class="cfg-section-head">Architecture</div>
               <div class="form-group">
-                <label class="form-label" for="cfg-backbone">Backbone Model</label>
+                <label class="form-label" for="cfg-backbone">Backbone</label>
                 <select class="form-select" id="cfg-backbone" name="backbone">
                   <option value="efficientnet_b0">EfficientNet-B0 (fast)</option>
-                  <option value="efficientnet_b3" selected>EfficientNet-B3 (balanced)</option>
+                  <option value="efficientnet_b3" selected>EfficientNet-B3</option>
                   <option value="efficientnet_b5">EfficientNet-B5 (accurate)</option>
                   <option value="resnet50">ResNet-50</option>
                   <option value="resnet101">ResNet-101</option>
-                  <option value="mobilenet_v3">MobileNet-V3 (edge deploy)</option>
+                  <option value="mobilenet_v3">MobileNet-V3 (edge)</option>
                 </select>
               </div>
               <div class="form-group">
@@ -133,13 +573,10 @@
               </div>
             </div>
 
-            <!-- Training Hyperparams -->
-            <div class="config-group">
-              <div class="config-group-label">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                HYPERPARAMETERS
-              </div>
-              <div class="form-row-2">
+            <!-- Hyperparameters -->
+            <div class="cfg-section">
+              <div class="cfg-section-head">Hyperparameters</div>
+              <div class="fg2">
                 <div class="form-group">
                   <label class="form-label" for="cfg-epochs">Epochs</label>
                   <input class="form-input" type="number" id="cfg-epochs" name="epochs" value="30" min="1" max="500">
@@ -155,7 +592,7 @@
                   </select>
                 </div>
               </div>
-              <div class="form-row-2">
+              <div class="fg2">
                 <div class="form-group">
                   <label class="form-label" for="cfg-lr">Learning Rate</label>
                   <input class="form-input" type="number" id="cfg-lr" name="lr" value="0.001" min="0.00001" max="0.1" step="0.0001">
@@ -167,12 +604,9 @@
               </div>
             </div>
 
-            <!-- Optimizer & Scheduler -->
-            <div class="config-group">
-              <div class="config-group-label">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                OPTIMIZER
-              </div>
+            <!-- Optimizer -->
+            <div class="cfg-section">
+              <div class="cfg-section-head">Optimizer</div>
               <div class="form-group">
                 <label class="form-label" for="cfg-optimizer">Optimizer</label>
                 <select class="form-select" id="cfg-optimizer" name="optimizer">
@@ -194,21 +628,18 @@
               </div>
             </div>
 
-            <!-- Data & Regularization -->
-            <div class="config-group">
-              <div class="config-group-label">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                DATA & REGULARIZATION
-              </div>
-              <div class="form-row-2">
+            <!-- Data -->
+            <div class="cfg-section">
+              <div class="cfg-section-head">Data & Regularization</div>
+              <div class="fg2">
                 <div class="form-group">
-                  <label class="form-label" for="cfg-imgsize">Image Size (px)</label>
+                  <label class="form-label" for="cfg-imgsize">Image Size</label>
                   <select class="form-select" id="cfg-imgsize" name="img_size">
-                    <option value="128">128</option>
-                    <option value="224" selected>224</option>
-                    <option value="256">256</option>
-                    <option value="384">384</option>
-                    <option value="512">512</option>
+                    <option value="128">128 px</option>
+                    <option value="224" selected>224 px</option>
+                    <option value="256">256 px</option>
+                    <option value="384">384 px</option>
+                    <option value="512">512 px</option>
                   </select>
                 </div>
                 <div class="form-group">
@@ -217,41 +648,27 @@
                 </div>
               </div>
               <div class="form-group">
-                <label class="form-label" for="cfg-val-split">Val Split</label>
-                <div class="slider-row">
-                  <input type="range" id="cfg-val-split" name="val_split" min="5" max="40" value="20" step="5" oninput="document.getElementById('val-split-out').textContent=this.value+'%'">
-                  <span class="slider-val mono" id="val-split-out">20%</span>
+                <label class="form-label">Val Split</label>
+                <div class="sl-row">
+                  <input type="range" id="cfg-val-split" name="val_split" min="5" max="40" value="20" step="5"
+                         oninput="document.getElementById('vso').textContent=this.value+'%'">
+                  <span class="sl-out" id="vso">20%</span>
                 </div>
               </div>
-              <div class="augment-checks">
-                <label class="check-item">
-                  <input type="checkbox" id="aug-flip" name="aug_flip" checked>
-                  <span>Horizontal Flip</span>
-                </label>
-                <label class="check-item">
-                  <input type="checkbox" id="aug-rotate" name="aug_rotate" checked>
-                  <span>Random Rotate</span>
-                </label>
-                <label class="check-item">
-                  <input type="checkbox" id="aug-color" name="aug_color">
-                  <span>Color Jitter</span>
-                </label>
-                <label class="check-item">
-                  <input type="checkbox" id="aug-mixup" name="aug_mixup">
-                  <span>MixUp</span>
-                </label>
+              <div class="aug-grid">
+                <label class="aug-label"><input type="checkbox" id="aug-flip"   name="aug_flip"   checked> Horiz. Flip</label>
+                <label class="aug-label"><input type="checkbox" id="aug-rotate" name="aug_rotate" checked> Rotate</label>
+                <label class="aug-label"><input type="checkbox" id="aug-color"  name="aug_color">  Color Jitter</label>
+                <label class="aug-label"><input type="checkbox" id="aug-mixup"  name="aug_mixup">  MixUp</label>
               </div>
             </div>
 
-            <!-- Early Stopping & Saving -->
-            <div class="config-group config-group-wide">
-              <div class="config-group-label">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                EARLY STOPPING & SAVING
-              </div>
-              <div class="form-row-3">
+            <!-- Early stop -->
+            <div class="cfg-section cfg-section-wide">
+              <div class="cfg-section-head">Early Stopping & Checkpointing</div>
+              <div class="fg3">
                 <div class="form-group">
-                  <label class="form-label" for="cfg-patience">Patience (epochs)</label>
+                  <label class="form-label" for="cfg-patience">Patience</label>
                   <input class="form-input" type="number" id="cfg-patience" name="patience" value="10" min="1" max="100">
                 </div>
                 <div class="form-group">
@@ -259,7 +676,7 @@
                   <input class="form-input" type="number" id="cfg-ckpt-freq" name="ckpt_freq" value="5" min="1" max="100">
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="cfg-monitor">Monitor Metric</label>
+                  <label class="form-label" for="cfg-monitor">Monitor</label>
                   <select class="form-select" id="cfg-monitor" name="monitor">
                     <option value="val_acc" selected>Val Accuracy</option>
                     <option value="val_loss">Val Loss</option>
@@ -269,87 +686,78 @@
               </div>
             </div>
 
-          </div><!-- .config-grid -->
-
-          <div class="config-actions">
-            <button class="btn btn-ghost btn-sm" onclick="resetConfig()">↺ Reset Defaults</button>
-            <button class="btn btn-secondary btn-sm" onclick="exportConfig()">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export Config
-            </button>
+          </div><!-- cfg-grid -->
+          <div class="cfg-actions">
+            <button class="btn btn-sm btn-ghost" onclick="resetCfg()">Reset</button>
+            <button class="btn btn-sm btn-secondary" onclick="exportCfg()">Export JSON</button>
           </div>
-        </div><!-- #config-panel -->
-      </div>
+        </div><!-- cfg-body -->
+      </div><!-- accordion -->
 
-      <!-- Checkpoint selector for resume -->
-      <div class="form-group" id="resume-section" style="display:none">
-        <label class="form-label" for="ckpt-select">เลือก Checkpoint สำหรับ Resume</label>
+      <!-- Resume checkpoint selector -->
+      <div class="resume-box" id="resume-box">
+        <label class="form-label" for="ckpt-select">Checkpoint</label>
         <select class="form-select" id="ckpt-select">
-          <option value="">Auto (ล่าสุด)</option>
+          <option value="">Auto (latest)</option>
           {% for ckpt in checkpoints %}
-          <option value="{{ ckpt.path }}">
-            Epoch {{ ckpt.epoch }} — {{ ckpt.size_mb }} MB
-          </option>
+          <option value="{{ ckpt.path }}">Epoch {{ ckpt.epoch }} — {{ ckpt.size_mb }} MB</option>
           {% endfor %}
         </select>
       </div>
 
-      <!-- Buttons -->
-      <div class="btn-row">
-        <button class="btn btn-primary" id="btn-train"
+      <!-- Action buttons -->
+      <div class="action-row">
+        <button class="action-btn abtn-start" id="btn-train"
                 onclick="startTraining(false)"
                 {% if training.running %}disabled{% endif %}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          START TRAINING
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Start
         </button>
-        <button class="btn btn-secondary" id="btn-resume"
-                onclick="toggleResumePanel()"
+        <button class="action-btn abtn-resume" id="btn-resume"
+                onclick="toggleResume()"
                 {% if not checkpoints %}disabled{% endif %}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg>
-          RESUME
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg>
+          Resume
         </button>
-        <button class="btn btn-danger" id="btn-stop"
+        <button class="action-btn abtn-stop" id="btn-stop"
                 onclick="stopTraining()"
                 {% if not training.running %}disabled{% endif %}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-          STOP
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          Stop
         </button>
       </div>
-      <div id="train-error" class="error-msg" style="display:none"></div>
+      <div class="err-box" id="err-box"></div>
 
     </div>
   </div>
 
-  <!-- Dataset Overview -->
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        DATASET OVERVIEW
+  <!-- RIGHT: Dataset -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">
+        <span class="card-title-dot" style="background:var(--accent-amber)"></span>
+        Dataset
       </span>
-      <a href="{{ url_for('upload') }}" class="btn btn-sm btn-primary" aria-label="Add training data">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        ADD DATA
-      </a>
+      <a href="{{ url_for('upload') }}" class="btn btn-sm btn-primary" aria-label="Add training data">+ Add Data</a>
     </div>
-    <div class="panel-body">
+    <div class="card-body">
       {% if counts %}
-      <div class="class-list">
+      <div class="ds-scroll">
         {% for cls, cnt in counts.items() | sort %}
-        <div class="class-row">
-          <span class="class-name">{{ cls.replace("_", " ") }}</span>
-          <div class="class-bar-track">
-            <div class="class-bar-fill"
-                 style="width: {{ [cnt * 100 // total_imgs if total_imgs > 0 else 0, 100] | min }}%">
+        <div class="ds-row">
+          <span class="ds-name">{{ cls.replace("_", " ") }}</span>
+          <div class="ds-bar-track">
+            <div class="ds-bar-fill"
+                 style="width:{{ [cnt * 100 // total_imgs if total_imgs > 0 else 0, 100] | min }}%">
             </div>
           </div>
-          <span class="class-count">{{ cnt }}</span>
+          <span class="ds-cnt">{{ cnt }}</span>
         </div>
         {% endfor %}
       </div>
       {% else %}
-      <div class="empty-state">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true" style="color:var(--text-muted);margin-bottom:10px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <div class="empty-center">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <p>ยังไม่มีข้อมูล</p>
         <a href="{{ url_for('upload') }}" class="btn btn-primary btn-sm">อัปโหลดรูปภาพ</a>
       </div>
@@ -357,20 +765,17 @@
     </div>
   </div>
 
-  <!-- Training Log -->
-  <div class="panel panel-wide">
-    <div class="panel-header">
-      <span class="panel-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        TRAINING LOG
+  <!-- BOTTOM: Training log -->
+  <div class="card span-2">
+    <div class="card-head">
+      <span class="card-title">
+        <span class="card-title-dot" style="background:var(--accent-cyan)"></span>
+        Training Log
       </span>
-      <button class="btn btn-sm btn-ghost" onclick="clearLog()" aria-label="Clear log">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        CLEAR
-      </button>
+      <button class="btn btn-sm btn-ghost" onclick="clearLog()" aria-label="Clear log">Clear</button>
     </div>
-    <div class="panel-body">
-      <div class="log-box" id="log-box" role="log" aria-live="polite" aria-label="Training log output">
+    <div class="card-body">
+      <div class="log-terminal" id="log-box" role="log" aria-live="polite" aria-label="Training log">
         {% for line in training.log %}
         <div class="log-line">{{ line }}</div>
         {% endfor %}
@@ -381,242 +786,74 @@
     </div>
   </div>
 
-  <!-- Training History Plot -->
+  <!-- BOTTOM: History plot (if exists) -->
   {% if best_exists %}
-  <div class="panel panel-wide">
-    <div class="panel-header">
-      <span class="panel-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-        TRAINING HISTORY
+  <div class="card span-2">
+    <div class="card-head">
+      <span class="card-title">
+        <span class="card-title-dot" style="background:var(--accent-amber)"></span>
+        Training History
       </span>
-      <button class="btn btn-sm btn-ghost" onclick="reloadPlot()" aria-label="Reload training history plot">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg>
-        RELOAD
-      </button>
+      <button class="btn btn-sm btn-ghost" onclick="reloadPlot()" aria-label="Reload plot">Reload</button>
     </div>
-    <div class="panel-body">
+    <div class="card-body">
       <img id="history-plot"
            src="/models/weights/training_history.png"
-           alt="Graph showing training and validation loss/accuracy over epochs"
-           class="history-plot"
-           onload="this.style.opacity=1"
-           style="opacity:0;transition:opacity 0.3s">
+           alt="Training and validation loss/accuracy over epochs"
+           class="plot-img"
+           onload="this.style.opacity=1">
     </div>
   </div>
   {% endif %}
 
-</div><!-- .dashboard-grid -->
+</div><!-- main-grid -->
 
-<!-- Extra CSS for new elements -->
-<style>
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 28px;
-}
-.page-header-left { display: flex; flex-direction: column; gap: 4px; }
-.page-header-right { display: flex; align-items: center; padding-top: 4px; }
-.sys-clock {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-muted);
-  letter-spacing: 3px;
-  border: 1px solid var(--border-dim);
-  padding: 5px 12px;
-  border-radius: var(--radius);
-  background: var(--bg-card);
-}
-
-/* Config section */
-.config-section {
-  margin-top: 20px;
-  border: 1px solid var(--border-dim);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-.config-toggle {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: rgba(0,212,255,0.04);
-  border: none;
-  color: var(--accent-cyan);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 2px;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: background 0.2s;
-}
-.config-toggle:hover { background: rgba(0,212,255,0.09); }
-.config-chevron {
-  margin-left: auto;
-  transition: transform 0.25s;
-  color: var(--text-muted);
-}
-.config-toggle[aria-expanded="true"] .config-chevron { transform: rotate(180deg); }
-
-.config-panel {
-  padding: 16px;
-  border-top: 1px solid var(--border-dim);
-  background: rgba(0,0,0,0.15);
-}
-.config-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.config-group {
-  background: var(--bg-card);
-  border: 1px solid var(--border-dim);
-  border-radius: var(--radius);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-.config-group-wide { grid-column: 1 / -1; }
-.config-group-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--accent-cyan);
-  text-transform: uppercase;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-dim);
-}
-.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-
-.slider-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.slider-row input[type="range"] {
-  flex: 1;
-  -webkit-appearance: none;
-  height: 3px;
-  background: var(--border-dim);
-  border-radius: 2px;
-  outline: none;
-}
-.slider-row input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: var(--accent-cyan);
-  cursor: pointer;
-  border: 2px solid var(--bg-base);
-}
-.slider-val {
-  font-size: 12px;
-  color: var(--accent-cyan);
-  min-width: 36px;
-  text-align: right;
-}
-
-.augment-checks {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 10px;
-}
-.check-item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  letter-spacing: 0.5px;
-}
-.check-item input[type="checkbox"] {
-  width: 14px; height: 14px;
-  accent-color: var(--accent-cyan);
-  cursor: pointer;
-}
-
-.config-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-dim);
-}
-
-/* Stat icon */
-.stat-icon-wrap {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  background: rgba(0,255,136,0.06);
-  border: 1px solid var(--border-dim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 10px;
-  color: var(--accent-green);
-}
-.stat-icon-wrap.icon-success { color: var(--accent-green); border-color: rgba(0,255,136,0.3); }
-.card-success .stat-icon-wrap { background: rgba(0,255,136,0.1); }
-
-@media (max-width: 700px) {
-  .config-grid { grid-template-columns: 1fr; }
-  .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
-  .augment-checks { grid-template-columns: 1fr 1fr; }
-  .config-group-wide { grid-column: auto; }
-  .page-header { flex-direction: column; gap: 10px; }
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-/* ── Clock ──────────────────────────────────────────────── */
-function tickClock() {
-  const el = document.getElementById("sys-clock");
-  if (el) el.textContent = new Date().toLocaleTimeString("en-GB", {hour12:false});
+/* ── Clock ──────────────────────────────────────────── */
+function tick() {
+  const now = new Date();
+  const t = document.getElementById("sys-time");
+  const d = document.getElementById("sys-date");
+  if (t) t.textContent = now.toLocaleTimeString("en-GB", {hour12: false});
+  if (d) d.textContent = now.toLocaleDateString("en-GB", {weekday:"short", day:"2-digit", month:"short", year:"numeric"});
 }
-tickClock();
-setInterval(tickClock, 1000);
+tick(); setInterval(tick, 1000);
 
-/* ── Config Panel ───────────────────────────────────────── */
-let configOpen = false;
-function toggleConfig() {
-  configOpen = !configOpen;
-  const panel = document.getElementById("config-panel");
-  const btn   = document.getElementById("config-toggle-btn");
-  panel.style.display = configOpen ? "block" : "none";
-  btn.setAttribute("aria-expanded", configOpen ? "true" : "false");
+/* ── Config accordion ───────────────────────────────── */
+function toggleCfg() {
+  const btn  = document.getElementById("cfg-btn");
+  const body = document.getElementById("cfg-body");
+  const open = btn.getAttribute("aria-expanded") === "true";
+  btn.setAttribute("aria-expanded", !open);
+  body.classList.toggle("open", !open);
 }
 
-function collectConfig() {
-  const ids = [
-    "cfg-backbone","cfg-pretrained","cfg-epochs","cfg-batch",
-    "cfg-lr","cfg-wd","cfg-optimizer","cfg-scheduler",
-    "cfg-imgsize","cfg-dropout","cfg-val-split",
-    "cfg-patience","cfg-ckpt-freq","cfg-monitor"
-  ];
-  const cfg = {};
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) cfg[el.name] = el.value;
-  });
-  cfg.augmentations = {
-    flip:   document.getElementById("aug-flip")?.checked   ?? true,
-    rotate: document.getElementById("aug-rotate")?.checked ?? true,
-    color:  document.getElementById("aug-color")?.checked  ?? false,
-    mixup:  document.getElementById("aug-mixup")?.checked  ?? false,
+function collectCfg() {
+  return {
+    backbone:     document.getElementById("cfg-backbone").value,
+    pretrained:   document.getElementById("cfg-pretrained").value,
+    epochs:       +document.getElementById("cfg-epochs").value,
+    batch_size:   +document.getElementById("cfg-batch").value,
+    lr:           +document.getElementById("cfg-lr").value,
+    weight_decay: +document.getElementById("cfg-wd").value,
+    optimizer:    document.getElementById("cfg-optimizer").value,
+    scheduler:    document.getElementById("cfg-scheduler").value,
+    img_size:     +document.getElementById("cfg-imgsize").value,
+    dropout:      +document.getElementById("cfg-dropout").value,
+    val_split:    +document.getElementById("cfg-val-split").value,
+    patience:     +document.getElementById("cfg-patience").value,
+    ckpt_freq:    +document.getElementById("cfg-ckpt-freq").value,
+    monitor:      document.getElementById("cfg-monitor").value,
+    augmentations: {
+      flip:   document.getElementById("aug-flip").checked,
+      rotate: document.getElementById("aug-rotate").checked,
+      color:  document.getElementById("aug-color").checked,
+      mixup:  document.getElementById("aug-mixup").checked,
+    }
   };
-  return cfg;
 }
 
 const DEFAULTS = {
@@ -625,10 +862,8 @@ const DEFAULTS = {
   optimizer:"adamw", scheduler:"cosine",
   img_size:224, dropout:0.3, val_split:20,
   patience:10, ckpt_freq:5, monitor:"val_acc",
-  aug_flip:true, aug_rotate:true, aug_color:false, aug_mixup:false
 };
-
-function resetConfig() {
+function resetCfg() {
   document.getElementById("cfg-backbone").value   = DEFAULTS.backbone;
   document.getElementById("cfg-pretrained").value = DEFAULTS.pretrained;
   document.getElementById("cfg-epochs").value     = DEFAULTS.epochs;
@@ -639,85 +874,64 @@ function resetConfig() {
   document.getElementById("cfg-scheduler").value  = DEFAULTS.scheduler;
   document.getElementById("cfg-imgsize").value    = DEFAULTS.img_size;
   document.getElementById("cfg-dropout").value    = DEFAULTS.dropout;
-  const slider = document.getElementById("cfg-val-split");
-  slider.value = DEFAULTS.val_split;
-  document.getElementById("val-split-out").textContent = DEFAULTS.val_split + "%";
-  document.getElementById("cfg-patience").value   = DEFAULTS.patience;
-  document.getElementById("cfg-ckpt-freq").value  = DEFAULTS.ckpt_freq;
-  document.getElementById("cfg-monitor").value    = DEFAULTS.monitor;
-  document.getElementById("aug-flip").checked     = DEFAULTS.aug_flip;
-  document.getElementById("aug-rotate").checked   = DEFAULTS.aug_rotate;
-  document.getElementById("aug-color").checked    = DEFAULTS.aug_color;
-  document.getElementById("aug-mixup").checked    = DEFAULTS.aug_mixup;
+  const sl = document.getElementById("cfg-val-split");
+  sl.value = DEFAULTS.val_split;
+  document.getElementById("vso").textContent = DEFAULTS.val_split + "%";
+  document.getElementById("cfg-patience").value  = DEFAULTS.patience;
+  document.getElementById("cfg-ckpt-freq").value = DEFAULTS.ckpt_freq;
+  document.getElementById("cfg-monitor").value   = DEFAULTS.monitor;
+  document.getElementById("aug-flip").checked    = true;
+  document.getElementById("aug-rotate").checked  = true;
+  document.getElementById("aug-color").checked   = false;
+  document.getElementById("aug-mixup").checked   = false;
 }
-
-function exportConfig() {
-  const cfg = collectConfig();
-  const blob = new Blob([JSON.stringify(cfg, null, 2)], {type:"application/json"});
+function exportCfg() {
+  const b = new Blob([JSON.stringify(collectCfg(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(b);
   a.download = "train_config.json";
   a.click();
   URL.revokeObjectURL(a.href);
 }
 
-/* ── Resume Panel ───────────────────────────────────────── */
-let resumePanelOpen = false;
-function toggleResumePanel() {
-  resumePanelOpen = !resumePanelOpen;
-  document.getElementById("resume-section").style.display =
-    resumePanelOpen ? "block" : "none";
-  if (resumePanelOpen) {
-    document.getElementById("btn-resume").innerHTML =
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> CANCEL RESUME';
-    document.getElementById("btn-train").innerHTML =
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg> START RESUME';
-    document.getElementById("btn-train").onclick = () => startTraining(true);
-  } else {
-    document.getElementById("btn-resume").innerHTML =
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.26"/></svg> RESUME';
-    document.getElementById("btn-train").innerHTML =
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> START TRAINING';
-    document.getElementById("btn-train").onclick = () => startTraining(false);
-  }
+/* ── Resume ─────────────────────────────────────────── */
+let resumeMode = false;
+function toggleResume() {
+  resumeMode = !resumeMode;
+  document.getElementById("resume-box").style.display = resumeMode ? "block" : "none";
+  const rb = document.getElementById("btn-resume");
+  rb.textContent = resumeMode ? "✕ Cancel" : "↺ Resume";
+  const sb = document.getElementById("btn-train");
+  sb.textContent = resumeMode ? "↺ Start Resume" : "▶ Start";
+  sb.onclick = () => startTraining(resumeMode);
 }
 
-/* ── Training ───────────────────────────────────────────── */
+/* ── Training ───────────────────────────────────────── */
 function startTraining(resume) {
-  const ckpt   = document.getElementById("ckpt-select")?.value || null;
-  const config = collectConfig();
+  const ckpt = document.getElementById("ckpt-select")?.value || null;
   document.getElementById("btn-train").disabled = true;
   document.getElementById("btn-stop").disabled  = false;
-  document.getElementById("train-error").style.display = "none";
+  document.getElementById("err-box").style.display = "none";
 
   fetch("/train/start", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      resume: resume,
-      checkpoint: ckpt || null,
-      config: config
-    }),
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({resume, checkpoint: ckpt || null, config: collectCfg()}),
   })
   .then(r => r.json())
-  .then(d => {
-    if (d.error) showError(d.error);
-    else startSSE();
-  })
-  .catch(e => showError(e.toString()));
+  .then(d => { if (d.error) showErr(d.error); else startSSE(); })
+  .catch(e => showErr(e.toString()));
 }
 
 function stopTraining() {
-  fetch("/train/stop", { method: "POST" })
+  fetch("/train/stop", {method:"POST"})
     .then(r => r.json())
-    .then(() => {
-      document.getElementById("train-badge").textContent = "STOPPING...";
-    });
+    .then(() => { document.getElementById("train-badge").textContent = "Stopping…"; });
 }
 
-function showError(msg) {
-  const el = document.getElementById("train-error");
-  el.textContent = "ERROR: " + msg;
+function showErr(msg) {
+  const el = document.getElementById("err-box");
+  el.textContent = "Error: " + msg;
   el.style.display = "block";
   document.getElementById("btn-train").disabled = false;
   document.getElementById("btn-stop").disabled  = true;
@@ -730,20 +944,23 @@ function clearLog() {
 
 function reloadPlot() {
   const img = document.getElementById("history-plot");
-  if (img) img.src = "/models/weights/training_history.png?t=" + Date.now();
+  if (img) {
+    img.style.opacity = 0;
+    img.src = "/models/weights/training_history.png?t=" + Date.now();
+  }
 }
 
-/* ── SSE ────────────────────────────────────────────────── */
+/* ── SSE ────────────────────────────────────────────── */
 function startSSE() {
   const es = new EventSource("/train/stream");
-  es.onmessage = (e) => {
+  es.onmessage = e => {
     const d = JSON.parse(e.data);
-    updateDashboard(d);
+    updateUI(d);
     if (!d.running) {
       es.close();
       document.getElementById("btn-train").disabled = false;
       document.getElementById("btn-stop").disabled  = true;
-      document.getElementById("train-badge").textContent = "COMPLETE";
+      setBadge("done", "Complete");
       setTimeout(reloadPlot, 2000);
     }
   };
@@ -754,7 +971,13 @@ function startSSE() {
   };
 }
 
-function updateDashboard(d) {
+function setBadge(type, text) {
+  const b = document.getElementById("train-badge");
+  b.textContent = text;
+  b.className = "badge badge-" + type;
+}
+
+function updateUI(d) {
   if (d.epoch && d.total) {
     const pct = (d.epoch / d.total * 100).toFixed(1);
     document.getElementById("epoch-progress").style.width = pct + "%";
@@ -762,19 +985,12 @@ function updateDashboard(d) {
   }
   if (d.best_acc !== null)
     document.getElementById("best-acc").textContent = (d.best_acc * 100).toFixed(1) + "%";
-  if (d.train_loss !== null)
-    document.getElementById("m-train-loss").textContent = d.train_loss?.toFixed(4) ?? "—";
-  if (d.val_loss !== null)
-    document.getElementById("m-val-loss").textContent = d.val_loss?.toFixed(4) ?? "—";
-  if (d.val_acc !== null)
-    document.getElementById("m-val-acc").textContent =
-      d.val_acc ? (d.val_acc * 100).toFixed(1) + "%" : "—";
+  document.getElementById("m-train-loss").textContent = d.train_loss != null ? d.train_loss.toFixed(4) : "—";
+  document.getElementById("m-val-loss").textContent   = d.val_loss   != null ? d.val_loss.toFixed(4)   : "—";
+  document.getElementById("m-val-acc").textContent    = d.val_acc    != null ? (d.val_acc * 100).toFixed(1) + "%" : "—";
 
-  const badge = document.getElementById("train-badge");
-  badge.textContent = d.running ? "TRAINING" : (d.error ? "ERROR" : "COMPLETE");
-  badge.className = "status-badge " + (
-    d.running ? "badge-active" : (d.error ? "badge-error" : "badge-done")
-  );
+  if (d.running) setBadge("active", "Training");
+  else if (d.error) setBadge("error", "Error");
 
   if (d.log && d.log.length) {
     const box = document.getElementById("log-box");
@@ -787,16 +1003,17 @@ function updateDashboard(d) {
     box.scrollTop = box.scrollHeight;
   }
 
-  if (d.error) showError(d.error);
+  if (d.error) showErr(d.error);
 
-  const navStatus = document.getElementById("nav-status-text");
-  if (navStatus) navStatus.textContent = d.running ? "TRAINING" : "STANDBY";
+  const ns = document.getElementById("nav-status-text");
+  if (ns) ns.textContent = d.running ? "Training" : "Standby";
 }
 
 {% if training.running %}
 startSSE();
 document.getElementById("btn-train").disabled = true;
 document.getElementById("btn-stop").disabled  = false;
+setBadge("active", "Training");
 {% endif %}
 </script>
 {% endblock %}
