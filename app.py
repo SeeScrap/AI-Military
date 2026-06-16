@@ -67,6 +67,7 @@ training_state = {
 _train_thread: threading.Thread | None = None
 _stop_event = threading.Event()
 _state_lock = threading.Lock()
+_inference_engine = None
 
 
 # ════════════════════════════════════════════════════════════
@@ -149,7 +150,7 @@ def _progress_callback(epoch, total, train_loss, val_loss, train_acc, val_acc):
          f"ValAcc={val_acc:.2%}")
 
 
-def _run_training(resume: bool, checkpoint_path: str | None):
+def _run_training(resume: bool, checkpoint_path: str | None, config: dict | None = None):
     global training_state
     training_state["running"] = True
     training_state["error"] = None
@@ -159,6 +160,7 @@ def _run_training(resume: bool, checkpoint_path: str | None):
     training_state["val_acc"] = []
     training_state["log"] = []
     training_state["epoch"] = 0
+    training_state["best_acc"] = 0.0  # reset so new run starts clean
 
     _log("Training started...")
     if resume:
@@ -178,6 +180,7 @@ def _run_training(resume: bool, checkpoint_path: str | None):
         trainer_module.train_classifier(
             resume=resume,
             checkpoint_path=checkpoint_path,
+            config=config or {},
             progress_callback=patched_callback,
         )
         _log("Training finished successfully!")
@@ -297,10 +300,11 @@ def train_start():
     data = request.get_json(silent=True) or {}
     resume = data.get("resume", False)
     checkpoint_path = data.get("checkpoint", None)
+    config = data.get("config", {})
 
     _train_thread = threading.Thread(
         target=_run_training,
-        args=(resume, checkpoint_path),
+        args=(resume, checkpoint_path, config),
         daemon=True,
     )
     _train_thread.start()
@@ -325,26 +329,29 @@ def train_stream():
     """Server-Sent Events for live training progress."""
     def event_generator():
         last_epoch = -1
-        while True:
-            ep = training_state["epoch"]
-            if ep != last_epoch or not training_state["running"]:
-                data = json.dumps({
-                    "epoch":      ep,
-                    "total":      training_state["total"],
-                    "running":    training_state["running"],
-                    "best_acc":   training_state["best_acc"],
-                    "train_loss": training_state["train_loss"][-1] if training_state["train_loss"] else None,
-                    "val_loss":   training_state["val_loss"][-1] if training_state["val_loss"] else None,
-                    "train_acc":  training_state["train_acc"][-1] if training_state["train_acc"] else None,
-                    "val_acc":    training_state["val_acc"][-1] if training_state["val_acc"] else None,
-                    "log":        training_state["log"][-5:],
-                    "error":      training_state["error"],
-                })
-                yield f"data: {data}\n\n"
-                last_epoch = ep
-                if not training_state["running"]:
-                    break
-            time.sleep(1)
+        try:
+            while True:
+                ep = training_state["epoch"]
+                if ep != last_epoch or not training_state["running"]:
+                    data = json.dumps({
+                        "epoch":      ep,
+                        "total":      training_state["total"],
+                        "running":    training_state["running"],
+                        "best_acc":   training_state["best_acc"],
+                        "train_loss": training_state["train_loss"][-1] if training_state["train_loss"] else None,
+                        "val_loss":   training_state["val_loss"][-1] if training_state["val_loss"] else None,
+                        "train_acc":  training_state["train_acc"][-1] if training_state["train_acc"] else None,
+                        "val_acc":    training_state["val_acc"][-1] if training_state["val_acc"] else None,
+                        "log":        training_state["log"][-5:],
+                        "error":      training_state["error"],
+                    })
+                    yield f"data: {data}\n\n"
+                    last_epoch = ep
+                    if not training_state["running"]:
+                        break
+                time.sleep(1)
+        except GeneratorExit:
+            pass  # client disconnected cleanly
 
     return Response(event_generator(),
                     mimetype="text/event-stream",
@@ -368,9 +375,6 @@ def training_plot():
     if os.path.exists(path):
         return send_from_directory(WEIGHTS_DIR, "training_history.png")
     return "", 404
-
-
-_inference_engine = None
 
 
 def get_inference_engine(conf_threshold=None):
