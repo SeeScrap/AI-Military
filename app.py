@@ -36,12 +36,12 @@ with open("config.yaml", "r", encoding="utf-8") as f:
 app = Flask(__name__)
 app.secret_key = CFG["web"]["secret_key"]
 
-UPLOAD_DIR     = CFG["web"]["upload_dir"]
+UPLOAD_DIR = CFG["web"]["upload_dir"]
 CLASSIFIER_DIR = CFG["classifier"]["data_dir"]
 CHECKPOINT_DIR = CFG["classifier"]["checkpoint_dir"]
-WEIGHTS_DIR    = CFG["classifier"]["weights_dir"]
-MAX_MB         = CFG["web"]["max_upload_mb"]
-TANK_CLASSES   = CFG["tank_classes"]
+WEIGHTS_DIR = CFG["classifier"]["weights_dir"]
+MAX_MB = CFG["web"]["max_upload_mb"]
+TANK_CLASSES = CFG["tank_classes"]
 
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tiff"}
 
@@ -64,7 +64,7 @@ training_state = {
     "error":      None,
 }
 _train_thread: threading.Thread | None = None
-_stop_event   = threading.Event()
+_stop_event = threading.Event()
 
 
 # ════════════════════════════════════════════════════════════
@@ -91,18 +91,18 @@ def get_class_counts() -> dict:
 def get_checkpoints() -> list[dict]:
     """List available classifier checkpoints."""
     pattern = os.path.join(CHECKPOINT_DIR, "classifier_epoch_*.pth")
-    files   = sorted(glob.glob(pattern),
-                     key=lambda x: int(x.split("epoch_")[-1].replace(".pth", "")))
-    result  = []
+    files = sorted(glob.glob(pattern),
+                   key=lambda x: int(x.split("epoch_")[-1].replace(".pth", "")))
+    result = []
     for f in files:
         epoch = int(Path(f).stem.split("epoch_")[-1])
-        size  = os.path.getsize(f) / 1e6
+        size = os.path.getsize(f) / 1e6
         result.append({"epoch": epoch, "path": f, "size_mb": round(size, 1)})
     return result
 
 
 def _log(msg: str):
-    ts  = time.strftime("%H:%M:%S")
+    ts = time.strftime("%H:%M:%S")
     entry = f"[{ts}] {msg}"
     training_state["log"].append(entry)
     if len(training_state["log"]) > 500:
@@ -111,8 +111,8 @@ def _log(msg: str):
 
 
 def _progress_callback(epoch, total, train_loss, val_loss, train_acc, val_acc):
-    training_state["epoch"]      = epoch
-    training_state["total"]      = total
+    training_state["epoch"] = epoch
+    training_state["total"] = total
     training_state["train_loss"].append(round(train_loss, 4))
     training_state["val_loss"].append(round(val_loss, 4))
     training_state["train_acc"].append(round(train_acc, 4))
@@ -124,14 +124,14 @@ def _progress_callback(epoch, total, train_loss, val_loss, train_acc, val_acc):
 
 def _run_training(resume: bool, checkpoint_path: str | None):
     global training_state
-    training_state["running"]    = True
-    training_state["error"]      = None
+    training_state["running"] = True
+    training_state["error"] = None
     training_state["train_loss"] = []
-    training_state["val_loss"]   = []
-    training_state["train_acc"]  = []
-    training_state["val_acc"]    = []
-    training_state["log"]        = []
-    training_state["epoch"]      = 0
+    training_state["val_loss"] = []
+    training_state["train_acc"] = []
+    training_state["val_acc"] = []
+    training_state["log"] = []
+    training_state["epoch"] = 0
 
     _log("Training started...")
     if resume:
@@ -167,10 +167,11 @@ def _run_training(resume: bool, checkpoint_path: str | None):
 
 @app.route("/")
 def index():
-    counts      = get_class_counts()
-    total_imgs  = sum(counts.values())
+    counts = get_class_counts()
+    total_imgs = sum(counts.values())
     checkpoints = get_checkpoints()
-    best_exists = os.path.exists(os.path.join(WEIGHTS_DIR, "classifier_best.pth"))
+    best_exists = os.path.exists(os.path.join(
+        WEIGHTS_DIR, "classifier_best.pth"))
     return render_template("index.html",
                            counts=counts,
                            total_imgs=total_imgs,
@@ -193,7 +194,7 @@ def upload():
     if "files" not in request.files:
         return jsonify({"error": "No files provided"}), 400
 
-    files     = request.files.getlist("files")
+    files = request.files.getlist("files")
     class_name = request.form.get("class_name", "").strip()
 
     if not class_name:
@@ -227,7 +228,7 @@ def upload():
             continue
 
         # Save with unique name to avoid collisions
-        ext  = Path(secure_filename(f.filename)).suffix.lower()
+        ext = Path(secure_filename(f.filename)).suffix.lower()
         name = f"{uuid.uuid4().hex}{ext}"
         path = os.path.join(save_dir, name)
 
@@ -249,7 +250,7 @@ def upload():
 @app.route("/train/start", methods=["POST"])
 def train_start():
     global _train_thread, _inference_engine
-    
+
     with _state_lock:
         if training_state["running"]:
             return jsonify({"error": "Training already running"}), 400
@@ -266,8 +267,8 @@ def train_start():
         _inference_engine = None
     clear_vram()
 
-    data            = request.get_json(silent=True) or {}
-    resume          = data.get("resume", False)
+    data = request.get_json(silent=True) or {}
+    resume = data.get("resume", False)
     checkpoint_path = data.get("checkpoint", None)
 
     _train_thread = threading.Thread(
@@ -306,9 +307,9 @@ def train_stream():
                     "running":    training_state["running"],
                     "best_acc":   training_state["best_acc"],
                     "train_loss": training_state["train_loss"][-1] if training_state["train_loss"] else None,
-                    "val_loss":   training_state["val_loss"][-1]   if training_state["val_loss"]   else None,
-                    "train_acc":  training_state["train_acc"][-1]  if training_state["train_acc"]  else None,
-                    "val_acc":    training_state["val_acc"][-1]    if training_state["val_acc"]    else None,
+                    "val_loss":   training_state["val_loss"][-1] if training_state["val_loss"] else None,
+                    "train_acc":  training_state["train_acc"][-1] if training_state["train_acc"] else None,
+                    "val_acc":    training_state["val_acc"][-1] if training_state["val_acc"] else None,
                     "log":        training_state["log"][-5:],
                     "error":      training_state["error"],
                 })
@@ -344,22 +345,24 @@ def training_plot():
 
 _inference_engine = None
 
+
 def get_inference_engine(conf_threshold=None):
     global _inference_engine
     if _inference_engine is None:
         from inference import TankInferenceEngine
         _inference_engine = TankInferenceEngine()
-    
+
     if conf_threshold is not None:
         _inference_engine.conf_thr = conf_threshold
-        
+
     return _inference_engine
 
 
 @app.route("/test", methods=["GET", "POST"])
 def test():
     if request.method == "GET":
-        best_exists = os.path.exists(os.path.join(WEIGHTS_DIR, "classifier_best.pth"))
+        best_exists = os.path.exists(os.path.join(
+            WEIGHTS_DIR, "classifier_best.pth"))
         return render_template("test.html",
                                best_exists=best_exists,
                                tank_classes=TANK_CLASSES,
@@ -368,7 +371,7 @@ def test():
     # POST - run inference
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
-        
+
     file = request.files["file"]
     if not file or file.filename == "":
         return jsonify({"error": "No file selected"}), 400
@@ -377,30 +380,30 @@ def test():
         conf_thr = request.form.get("conf_threshold", None)
         if conf_thr is not None:
             conf_thr = float(conf_thr)
-        
+
         # Read file bytes
         img_bytes = file.read()
         nparr = np.frombuffer(img_bytes, np.uint8)
         img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
+
         if img_bgr is None:
             return jsonify({"error": "Could not decode image"}), 400
-            
+
         h, w = img_bgr.shape[:2]
-        
+
         # Load engine and update conf_threshold
         engine = get_inference_engine(conf_threshold=conf_thr)
-        
+
         # Run prediction
         results = engine.predict_image(img_bgr)
-        
+
         # Draw HUD overlay
         annotated_bgr = engine.draw_hud(img_bgr, results)
-        
+
         # Encode annotated image back to JPEG base64
         _, buffer = cv2.imencode(".jpg", annotated_bgr)
         img_base64 = base64.b64encode(buffer).decode("utf-8")
-        
+
         return jsonify({
             "success": True,
             "width": w,
@@ -408,34 +411,11 @@ def test():
             "targets": results,
             "annotated_image": f"data:image/jpeg;base64,{img_base64}"
         })
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Inference failed: {str(e)}"}), 500
-
-
-
-if __name__ == "__main__":
-    port = CFG["web"]["port"]
-    print("=" * 60)
-    print("  Tank Detection AI — Web Training UI")
-    print(f"  Open: http://localhost:{port}")
-    print("=" * 60)
-    app.run(host="0.0.0.0", port=port, threaded=True, debug=False)
-eturn jsonify({
-            "success": True,
-            "width": w,
-            "height": h,
-            "targets": results,
-            "annotated_image": f"data:image/jpeg;base64,{img_base64}"
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Inference failed: {str(e)}"}), 500
-
 
 
 if __name__ == "__main__":
