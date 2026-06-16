@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}Upload Training Data — Tank AI System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <span class="title-accent">◈</span> UPLOAD TRAINING DATA
+  </h1>
+  <p class="page-subtitle">อัปโหลดรูปยานเกราะและระบุรุ่น — ระบบจะใช้ข้อมูลนี้ Train AI</p>
+</div>
+
+<div class="upload-grid">
+
+  <!-- Upload Panel -->
+  <div class="panel panel-primary upload-panel">
+    <div class="panel-header">
+      <span class="panel-title">⬆ UPLOAD IMAGES</span>
+    </div>
+    <div class="panel-body">
+
+      <!-- Class selector -->
+      <div class="form-group">
+        <label class="form-label" for="class-input">
+          🎯 รุ่นรถถัง / ยานเกราะ <span class="required">*</span>
+        </label>
+        <div class="class-input-row">
+          <input type="text" id="class-input" class="form-input"
+                 placeholder="พิมพ์ชื่อรุ่น เช่น T-72, M1 Abrams..."
+                 list="class-suggestions" autocomplete="off">
+          <datalist id="class-suggestions">
+            {% for cls in tank_classes %}
+            <option value="{{ cls }}">
+            {% endfor %}
+          </datalist>
+        </div>
+        <div class="form-hint">
+          พิมพ์ชื่อรุ่นที่ต้องการ หรือเลือกจากรายการ (สามารถเพิ่มรุ่นใหม่ได้)
+        </div>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-icon">📁</div>
+        <div class="drop-title">ลากรูปภาพมาวางที่นี่</div>
+        <div class="drop-subtitle">หรือ</div>
+        <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">
+          เลือกไฟล์
+        </button>
+        <div class="drop-info">รองรับ: JPG, PNG, BMP, WEBP | ขนาดสูงสุด: 50 MB ต่อไฟล์</div>
+        <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff"
+               style="display:none" onchange="handleFiles(this.files)">
+      </div>
+
+      <!-- Preview grid -->
+      <div id="preview-grid" class="preview-grid" style="display:none"></div>
+
+      <!-- Upload button + progress -->
+      <div id="upload-controls" style="display:none">
+        <div class="progress-label">
+          <span id="upload-count">0 files selected</span>
+          <button class="btn btn-ghost btn-sm" onclick="clearPreview()">✕ CLEAR</button>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="upload-progress" style="width:0%"></div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="btn-upload" onclick="uploadFiles()">
+          ⬆ UPLOAD & LABEL
+        </button>
+      </div>
+
+      <!-- Result -->
+      <div id="upload-result" class="upload-result" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Current Dataset -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">📊 CURRENT DATASET</span>
+      <span class="mono" id="total-count">{{ counts.values() | sum }} imgs</span>
+    </div>
+    <div class="panel-body">
+      <div class="class-list" id="class-list">
+        {% for cls, cnt in counts.items() | sort %}
+        <div class="class-row" id="cls-{{ cls | replace('/', '_') | replace(' ', '_') }}">
+          <span class="class-name">{{ cls.replace("_", " ") }}</span>
+          <div class="class-bar-track">
+            <div class="class-bar-fill"
+                 style="width: {{ [cnt * 100 // (counts.values()|sum) if (counts.values()|sum) > 0 else 0, 100]|min }}%">
+            </div>
+          </div>
+          <span class="class-count">{{ cnt }}</span>
+        </div>
+        {% else %}
+        <div class="empty-state" id="empty-dataset">
+          <div class="empty-icon">📂</div>
+          <p class="muted">ยังไม่มีข้อมูล — เริ่มอัปโหลดรูปภาพ</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Tips -->
+      <div class="tip-box">
+        <div class="tip-title">💡 คำแนะนำสำหรับผลลัพธ์ที่ดี</div>
+        <ul class="tip-list">
+          <li>แต่ละรุ่นควรมีอย่างน้อย <strong>20-50 รูป</strong></li>
+          <li>ใช้รูปจากมุมมองต่าง ๆ (ด้านหน้า, ด้านข้าง, ด้านบน)</li>
+          <li>รวมรูปจากระยะและแสงที่หลากหลาย</li>
+          <li>รูปควรมีรถถังเป็นจุดหลัก (ไม่ต้องมี bounding box)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .upload-grid -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedFiles = [];
+
+// ── Drag & Drop ────────────────────────────────────────────
+const dropZone = document.getElementById("drop-zone");
+
+dropZone.addEventListener("dragover",  (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("drag-over");
+  handleFiles(e.dataTransfer.files);
+});
+
+function handleFiles(fileList) {
+  const newFiles = Array.from(fileList).filter(f =>
+    /\.(jpg|jpeg|png|bmp|webp|tiff)$/i.test(f.name));
+
+  if (!newFiles.length) {
+    alert("ไม่พบไฟล์รูปภาพที่รองรับ");
+    return;
+  }
+
+  selectedFiles = [...selectedFiles, ...newFiles];
+  renderPreviews();
+}
+
+function renderPreviews() {
+  const grid = document.getElementById("preview-grid");
+  const ctrl = document.getElementById("upload-controls");
+  const cnt  = document.getElementById("upload-count");
+
+  grid.innerHTML = "";
+  grid.style.display = selectedFiles.length ? "grid" : "none";
+  ctrl.style.display = selectedFiles.length ? "block" : "none";
+  cnt.textContent = `${selectedFiles.length} file(s) selected`;
+
+  selectedFiles.forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const card = document.createElement("div");
+      card.className = "preview-card";
+      card.innerHTML = `
+        <img src="${e.target.result}" alt="${file.name}" class="preview-img">
+        <div class="preview-name">${file.name.substring(0, 20)}</div>
+        <button class="preview-remove" onclick="removeFile(${i})">✕</button>
+      `;
+      grid.appendChild(card);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  renderPreviews();
+}
+
+function clearPreview() {
+  selectedFiles = [];
+  renderPreviews();
+  document.getElementById("upload-result").style.display = "none";
+}
+
+// ── Upload ─────────────────────────────────────────────────
+function uploadFiles() {
+  const className = document.getElementById("class-input").value.trim();
+  if (!className) {
+    alert("กรุณาระบุชื่อรุ่นรถถัง");
+    document.getElementById("class-input").focus();
+    return;
+  }
+  if (!selectedFiles.length) {
+    alert("กรุณาเลือกรูปภาพ");
+    return;
+  }
+
+  const btn      = document.getElementById("btn-upload");
+  const progress = document.getElementById("upload-progress");
+  const result   = document.getElementById("upload-result");
+
+  btn.disabled = true;
+  btn.textContent = "⏳ UPLOADING...";
+  result.style.display = "none";
+
+  // Upload in batches of 10
+  const batchSize = 10;
+  let uploaded = 0;
+  let allErrors = [];
+
+  async function uploadBatch(startIdx) {
+    const batch = selectedFiles.slice(startIdx, startIdx + batchSize);
+    if (!batch.length) {
+      // Done
+      progress.style.width = "100%";
+      showResult(uploaded, allErrors, className);
+      btn.disabled = false;
+      btn.textContent = "⬆ UPLOAD & LABEL";
+      refreshClassList();
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("class_name", className);
+    batch.forEach(f => fd.append("files", f));
+
+    try {
+      const res  = await fetch("/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      uploaded  += data.saved || 0;
+      allErrors  = allErrors.concat(data.errors || []);
+    } catch (e) {
+      allErrors.push("Network error: " + e.toString());
+    }
+
+    const pct = Math.min(((startIdx + batchSize) / selectedFiles.length) * 100, 99);
+    progress.style.width = pct + "%";
+    await uploadBatch(startIdx + batchSize);
+  }
+
+  uploadBatch(0);
+}
+
+function showResult(saved, errors, className) {
+  const result = document.getElementById("upload-result");
+  let html = `<div class="result-success">
+    ✓ อัปโหลดสำเร็จ <strong>${saved} รูป</strong> เข้าคลาส
+    <strong>${className}</strong>
+  </div>`;
+  if (errors.length) {
+    html += `<div class="result-errors">
+      ⚠ ไม่สามารถอัปโหลดได้ ${errors.length} ไฟล์:
+      <ul>${errors.slice(0, 5).map(e => `<li>${e}</li>`).join("")}</ul>
+    </div>`;
+  }
+  result.innerHTML = html;
+  result.style.display = "block";
+  if (saved > 0) clearPreview();
+}
+
+function refreshClassList() {
+  fetch("/classes").then(r => r.json()).then(data => {
+    const list = document.getElementById("class-list");
+    const empty = document.getElementById("empty-dataset");
+    const total = Object.values(data).reduce((a, b) => a + b, 0);
+    document.getElementById("total-count").textContent = total + " imgs";
+
+    if (empty) empty.remove();
+    list.innerHTML = "";
+    const sorted = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0]));
+    const maxCnt = Math.max(...Object.values(data), 1);
+    sorted.forEach(([cls, cnt]) => {
+      const pct = Math.min(cnt / maxCnt * 100, 100);
+      const div = document.createElement("div");
+      div.className = "class-row";
+      div.innerHTML = `
+        <span class="class-name">${cls.replace(/_/g, " ")}</span>
+        <div class="class-bar-track">
+          <div class="class-bar-fill" style="width:${pct}%"></div>
+        </div>
+        <span class="class-count">${cnt}</span>
+      `;
+      list.appendChild(div);
+    });
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,558 @@
+{% extends "base.html" %}
+{% block title %}Tactical Target Test — Tank AI System{% endblock %}
+
+{% block head %}
+<style>
+  .test-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 20px;
+  }
+  @media (max-width: 992px) {
+    .test-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .display-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 1px solid var(--border-dim);
+    background: rgba(13, 21, 32, 0.8);
+    min-height: 450px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  
+  .hud-canvas {
+    max-width: 100%;
+    max-height: 550px;
+    display: block;
+    object-fit: contain;
+    border-radius: var(--radius);
+  }
+  
+  .hud-overlay-text {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    font-family: var(--font-mono);
+    color: var(--accent-green);
+    text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+    pointer-events: none;
+    font-size: 13px;
+    line-height: 1.6;
+    background: rgba(8, 13, 17, 0.7);
+    padding: 8px 12px;
+    border-left: 2px solid var(--accent-green);
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  
+  .hud-corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--accent-green);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .hud-corner-tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+  .hud-corner-tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+  .hud-corner-bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+  .hud-corner-br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+  
+  .target-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  .target-table th, .target-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .target-table th {
+    color: var(--accent-green);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .target-row {
+    transition: background 0.2s;
+  }
+  .target-row:hover {
+    background: rgba(0, 255, 136, 0.04);
+  }
+  
+  .conf-badge-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .conf-bar-track {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    width: 60px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .conf-bar-fill {
+    height: 100%;
+    background: var(--accent-green);
+  }
+  .conf-bar-fill.amber { background: var(--accent-amber); }
+  .conf-bar-fill.red { background: var(--accent-red); }
+  .conf-bar-fill.cyan { background: var(--accent-cyan); }
+  
+  .parameter-box {
+    background: var(--bg-panel-alt);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius);
+    padding: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .btn-row-test {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 15px;
+  }
+  
+  .drop-zone-test {
+    border: 2px dashed var(--border-dim);
+    padding: 60px 20px;
+    text-align: center;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.3s;
+    background: rgba(0, 255, 136, 0.01);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 350px;
+  }
+  .drop-zone-test:hover, .drop-zone-test.drag-over {
+    border-color: var(--accent-green);
+    background: rgba(0, 255, 136, 0.04);
+    box-shadow: var(--glow-green);
+  }
+  .drop-zone-test .icon {
+    font-size: 40px;
+    margin-bottom: 15px;
+    opacity: 0.8;
+    color: var(--accent-green);
+    filter: drop-shadow(0 0 5px rgba(0, 255, 136, 0.4));
+  }
+  
+  .slider-container {
+    margin-top: 12px;
+  }
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .slider-val {
+    color: var(--accent-green);
+    font-weight: bold;
+  }
+  .range-input {
+    width: 100%;
+    accent-color: var(--accent-green);
+    background: var(--bg-base);
+    border-radius: var(--radius);
+    height: 6px;
+    outline: none;
+    margin-top: 8px;
+    cursor: pointer;
+    border: 1px solid var(--border-dim);
+  }
+  
+  .empty-target-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .empty-target-icon {
+    font-size: 32px;
+    opacity: 0.4;
+  }
+  
+  .badge-type {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+  
+  .badge-tank { background: rgba(0, 255, 136, 0.15); color: #00ff88; border: 1px solid rgba(0, 255, 136, 0.3); }
+  .badge-ifv  { background: rgba(0, 200, 255, 0.15); color: #00d4ff; border: 1px solid rgba(0, 200, 255, 0.3); }
+  .badge-apc  { background: rgba(255, 180, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 180, 0, 0.3); }
+  .badge-spg  { background: rgba(255, 80, 80, 0.15); color: #ff3b3b; border: 1px solid rgba(255, 80, 80, 0.3); }
+  .badge-default { background: rgba(180, 180, 180, 0.15); color: #b4b4b4; border: 1px solid rgba(180, 180, 180, 0.3); }
+
+  .re-detect-box {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .re-detect-box button {
+    width: 100%;
+  }
+
+  .status-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 1px 6px;
+    border-radius: var(--radius);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .status-tag.active {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--accent-green);
+    border: 1px solid var(--border-bright);
+  }
+  .status-tag.inactive {
+    background: rgba(255, 80, 80, 0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(255, 80, 80, 0.3);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <span class="title-accent">◈</span> TACTICAL TARGET TEST
+  </h1>
+  <p class="page-subtitle">จำลองกล้องตรวจจับและจำแนกรายละเอียดเป้าหมายทางยุทธวิธี</p>
+</div>
+
+<div class="test-grid">
+
+  <!-- Left side: Image HUD Display -->
+  <div class="panel panel-primary">
+    <div class="panel-header">
+      <span class="panel-title">🛡 GUNNER ASSIST HUD DISPLAY</span>
+      <span class="status-tag {% if best_exists %}active{% else %}inactive{% endif %}">
+        {% if best_exists %}CLASSIFIER ONLINE{% else %}CLASSIFIER OFFLINE{% endif %}
+      </span>
+    </div>
+    <div class="panel-body" style="padding: 15px;">
+      
+      <div class="display-panel" id="display-container">
+        <!-- Default State: Upload Area -->
+        <div class="drop-zone-test" id="drop-zone" onclick="document.getElementById('file-input').click()">
+          <div class="icon">⬢</div>
+          <div class="drop-title" style="font-weight: 600; letter-spacing: 1px; font-size: 16px; margin-bottom: 5px;">
+            กรุณาเลือกหรือลากรูปภาพเป้าหมายมาวางที่นี่
+          </div>
+          <div class="drop-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">
+            ลากและวางรูปภาพ (JPG, PNG, BMP, WEBP)
+          </div>
+          <button class="btn btn-primary" style="padding: 8px 24px; font-size: 12px;">
+            เปิดไฟล์ภาพ
+          </button>
+          <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff" style="display:none" onchange="loadFile(this.files[0])">
+        </div>
+        
+        <!-- Active State: Annotated Image -->
+        <img id="hud-img" class="hud-canvas" style="display:none;" alt="Tactical HUD Output">
+        <div id="hud-details" class="hud-overlay-text" style="display:none;">
+          SYSTEM: TACTICAL DETECT MODE<br>
+          RESOLUTION: <span id="img-res">—</span><br>
+          DEVICE: RTX 3050 Ti (CUDA)<br>
+          TIME: <span id="run-time">—</span>
+        </div>
+        
+        <!-- Corners for HUD styling -->
+        <div class="hud-corner hud-corner-tl"></div>
+        <div class="hud-corner hud-corner-tr"></div>
+        <div class="hud-corner hud-corner-bl"></div>
+        <div class="hud-corner hud-corner-br"></div>
+      </div>
+      
+      <!-- Action buttons -->
+      <div class="btn-row-test" id="active-actions" style="display:none;">
+        <button class="btn btn-secondary" onclick="resetTest()">
+          ✕ CLEAR IMAGE
+        </button>
+        <button class="btn btn-primary" id="btn-re-run" onclick="runInference()">
+          ⚡ RE-RUN TARGET TEST
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Right side: Parameters and Targets List -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">⚙ TARGETING SETTINGS & LOG</span>
+    </div>
+    <div class="panel-body">
+      
+      <!-- Parameters -->
+      <div class="parameter-box">
+        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--accent-green); margin-bottom: 12px; text-transform: uppercase;">
+          🛡 Detection Tuning
+        </h4>
+        
+        <!-- Confidence threshold slider -->
+        <div class="slider-container">
+          <div class="slider-header">
+            <span>CONFIDENCE THRESHOLD (ความมั่นใจขั้นต่ำ)</span>
+            <span class="slider-val" id="conf-val">45%</span>
+          </div>
+          <input type="range" id="conf-input" class="range-input" min="5" max="95" value="45" oninput="updateConfLabel(this.value)">
+        </div>
+      </div>
+
+      <!-- Target Log Section -->
+      <div style="margin-top: 15px;">
+        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid var(--border-dim); padding-bottom: 6px; display:flex; justify-content:space-between;">
+          <span>📋 TARGET LOGS</span>
+          <span class="mono accent-green" id="target-count-badge" style="font-size:11px;">0 FOUND</span>
+        </h4>
+        
+        <div id="target-list-container" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+          <!-- Empty state -->
+          <div class="empty-target-state" id="empty-targets">
+            <div class="empty-target-icon">⌖</div>
+            <p>ยังไม่มีการตรวจพบเป้าหมาย</p>
+            <span style="font-size: 11px; color: var(--text-muted);">
+              กรุณาอัปโหลดรูปภาพเพื่อเริ่มต้นวิเคราะห์หาเป้าหมายทางยุทธวิธี
+            </span>
+          </div>
+          
+          <!-- Targets table (generated dynamically) -->
+          <table class="target-table" id="targets-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>TYPE</th>
+                <th>CLASSIFICATION / MODEL</th>
+                <th>CONFIDENCE</th>
+              </tr>
+            </thead>
+            <tbody id="targets-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentFile = null;
+
+  // ── Drag & Drop ────────────────────────────────────────────
+  const dropZone = document.getElementById("drop-zone");
+
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("drag-over");
+  });
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("drag-over");
+  });
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    if (e.dataTransfer.files.length) {
+      loadFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  function updateConfLabel(val) {
+    document.getElementById("conf-val").textContent = val + "%";
+  }
+
+  function loadFile(file) {
+    if (!file) return;
+    if (!/\.(jpg|jpeg|png|bmp|webp|tiff)$/i.test(file.name)) {
+      alert("กรุณาเลือกไฟล์รูปภาพที่รองรับ (JPG, PNG, BMP, WEBP)");
+      return;
+    }
+    
+    currentFile = file;
+    
+    // Hide dropzone, show image container
+    document.getElementById("drop-zone").style.display = "none";
+    const hudImg = document.getElementById("hud-img");
+    hudImg.style.display = "block";
+    
+    // Render local preview temporarily
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      hudImg.src = e.target.result;
+      document.getElementById("active-actions").style.display = "grid";
+      
+      // Auto run inference
+      runInference();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetTest() {
+    currentFile = null;
+    document.getElementById("file-input").value = "";
+    document.getElementById("drop-zone").style.display = "flex";
+    document.getElementById("hud-img").style.display = "none";
+    document.getElementById("hud-img").src = "";
+    document.getElementById("hud-details").style.display = "none";
+    document.getElementById("active-actions").style.display = "none";
+    
+    // Reset target table
+    document.getElementById("targets-table").style.display = "none";
+    document.getElementById("empty-targets").style.display = "flex";
+    document.getElementById("target-count-badge").textContent = "0 FOUND";
+  }
+
+  function runInference() {
+    if (!currentFile) return;
+
+    const btn = document.getElementById("btn-re-run");
+    const confVal = parseFloat(document.getElementById("conf-input").value) / 100.0;
+    
+    btn.disabled = true;
+    btn.textContent = "⚡ SCANNING TARGET...";
+    
+    const formData = new FormData();
+    formData.append("file", currentFile);
+    formData.append("conf_threshold", confVal);
+
+    const startTime = performance.now();
+
+    fetch("/test", {
+      method: "POST",
+      body: formData
+    })
+    .then(r => {
+      if (!r.ok) {
+        return r.json().then(err => { throw new Error(err.error || "เกิดข้อผิดพลาดในการรันโมเดล") });
+      }
+      return r.json();
+    })
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = "⚡ RE-RUN TARGET TEST";
+      
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      // Update annotated image
+      document.getElementById("hud-img").src = data.annotated_image;
+      
+      // Update details overlay
+      document.getElementById("hud-details").style.display = "block";
+      document.getElementById("img-res").textContent = data.width + "x" + data.height;
+      document.getElementById("run-time").textContent = elapsed + "s";
+      
+      // Update Target Logs
+      updateTargetLogs(data.targets);
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = "⚡ RE-RUN TARGET TEST";
+      alert("Error: " + err.message);
+    });
+  }
+
+  function updateTargetLogs(targets) {
+    const table = document.getElementById("targets-table");
+    const emptyState = document.getElementById("empty-targets");
+    const tbody = document.getElementById("targets-tbody");
+    const badge = document.getElementById("target-count-badge");
+    
+    tbody.innerHTML = "";
+    badge.textContent = targets.length + " FOUND";
+
+    if (targets.length === 0) {
+      table.style.display = "none";
+      emptyState.style.display = "flex";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    table.style.display = "table";
+
+    targets.forEach((t, i) => {
+      const row = document.createElement("tr");
+      row.className = "target-row";
+      
+      // Determine badge class for vehicle type
+      let badgeClass = "badge-default";
+      const vt = t.vehicle_type.toLowerCase();
+      if (vt.includes("tank")) badgeClass = "badge-tank";
+      else if (vt.includes("ifv")) badgeClass = "badge-ifv";
+      else if (vt.includes("apc")) badgeClass = "badge-apc";
+      else if (vt.includes("spg")) badgeClass = "badge-spg";
+
+      // Color coding for classifier confidence bar
+      let confColor = "";
+      if (t.conf_cls > 0.8) confColor = "";
+      else if (t.conf_cls > 0.6) confColor = "cyan";
+      else if (t.conf_cls > 0.4) confColor = "amber";
+      else confColor = "red";
+
+      // Display classification name (if unknown or empty, show 'N/A' or class name)
+      const modelName = t.tank_model || "Unknown";
+
+      // Draw coordinates info
+      const coords = `[${t.x1}, ${t.y1}, ${t.x2}, ${t.y2}]`;
+
+      row.innerHTML = `
+        <td>#${i + 1}<div style="font-size:9px; color:var(--text-muted); margin-top:2px;">${coords}</div></td>
+        <td><span class="badge-type ${badgeClass}">${t.vehicle_type}</span></td>
+        <td style="font-weight:600; color:${t.tank_model !== 'Unknown' ? 'var(--accent-green)' : 'var(--text-secondary)'}">${modelName}</td>
+        <td>
+          <div class="conf-badge-container">
+            <span class="mono">${(t.conf_cls * 100).toFixed(0)}%</span>
+            <div class="conf-bar-track">
+              <div class="conf-bar-fill ${confColor}" style="width: ${(t.conf_cls * 100).toFixed(0)}%"></div>
+            </div>
+            ${t.conf_det < 1.0 ? `<span style="font-size: 10px; color: var(--text-muted);">det:${(t.conf_det * 100).toFixed(0)}%</span>` : ''}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+</script>
+{% endblock %}

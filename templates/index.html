@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Tank AI System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <span class="title-accent">◈</span> COMMAND DASHBOARD
+  </h1>
+  <p class="page-subtitle">ภาพรวมระบบ AI ตรวจจับยานเกราะ</p>
+</div>
+
+<!-- ── Stat cards ─────────────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">🖼</div>
+    <div class="stat-value" id="stat-total">{{ total_imgs }}</div>
+    <div class="stat-label">TOTAL IMAGES</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🎯</div>
+    <div class="stat-value">{{ counts | length }}</div>
+    <div class="stat-label">VEHICLE CLASSES</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">💾</div>
+    <div class="stat-value">{{ checkpoints | length }}</div>
+    <div class="stat-label">CHECKPOINTS</div>
+  </div>
+  <div class="stat-card {% if best_exists %}card-success{% endif %}">
+    <div class="stat-icon">{% if best_exists %}✓{% else %}✗{% endif %}</div>
+    <div class="stat-value">{{ "READY" if best_exists else "NONE" }}</div>
+    <div class="stat-label">TRAINED MODEL</div>
+  </div>
+</div>
+
+<!-- ── Main grid ───────────────────────────────────────────── -->
+<div class="dashboard-grid">
+
+  <!-- Training Control Panel -->
+  <div class="panel panel-primary">
+    <div class="panel-header">
+      <span class="panel-title">⚙ TRAINING CONTROL</span>
+      <span class="status-badge" id="train-badge">STANDBY</span>
+    </div>
+    <div class="panel-body">
+
+      <!-- Progress bar -->
+      <div class="progress-section">
+        <div class="progress-label">
+          <span>EPOCH PROGRESS</span>
+          <span id="epoch-label">0 / 0</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="epoch-progress" style="width:0%"></div>
+        </div>
+        <div class="progress-label" style="margin-top:8px">
+          <span>BEST ACCURACY</span>
+          <span id="best-acc" class="accent-green">{{ (training.best_acc * 100) | round(1) }}%</span>
+        </div>
+      </div>
+
+      <!-- Live metrics -->
+      <div class="metrics-row">
+        <div class="metric-box">
+          <div class="metric-val" id="m-train-loss">—</div>
+          <div class="metric-lbl">TRAIN LOSS</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val" id="m-val-loss">—</div>
+          <div class="metric-lbl">VAL LOSS</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val accent-green" id="m-val-acc">—</div>
+          <div class="metric-lbl">VAL ACC</div>
+        </div>
+      </div>
+
+      <!-- Checkpoint selector for resume -->
+      <div class="form-group" id="resume-section" style="display:none">
+        <label class="form-label">เลือก Checkpoint สำหรับ Resume:</label>
+        <select class="form-select" id="ckpt-select">
+          <option value="">Auto (ล่าสุด)</option>
+          {% for ckpt in checkpoints %}
+          <option value="{{ ckpt.path }}">
+            Epoch {{ ckpt.epoch }} — {{ ckpt.size_mb }} MB
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Buttons -->
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-train"
+                onclick="startTraining(false)"
+                {% if training.running %}disabled{% endif %}>
+          ▶ START TRAINING
+        </button>
+        <button class="btn btn-secondary" id="btn-resume"
+                onclick="toggleResumePanel()"
+                {% if not checkpoints %}disabled{% endif %}>
+          ↺ RESUME
+        </button>
+        <button class="btn btn-danger" id="btn-stop"
+                onclick="stopTraining()"
+                {% if not training.running %}disabled{% endif %}>
+          ■ STOP
+        </button>
+      </div>
+      <div id="train-error" class="error-msg" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Dataset Overview -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">📊 DATASET OVERVIEW</span>
+      <a href="{{ url_for('upload') }}" class="btn btn-sm btn-primary">+ ADD DATA</a>
+    </div>
+    <div class="panel-body">
+      {% if counts %}
+      <div class="class-list">
+        {% for cls, cnt in counts.items() | sort %}
+        <div class="class-row">
+          <span class="class-name">{{ cls.replace("_", " ") }}</span>
+          <div class="class-bar-track">
+            <div class="class-bar-fill"
+                 style="width: {{ [cnt * 100 // total_imgs if total_imgs > 0 else 0, 100] | min }}%">
+            </div>
+          </div>
+          <span class="class-count">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📁</div>
+        <p>ยังไม่มีข้อมูล</p>
+        <a href="{{ url_for('upload') }}" class="btn btn-primary btn-sm">อัปโหลดรูปภาพ</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Training Log -->
+  <div class="panel panel-wide">
+    <div class="panel-header">
+      <span class="panel-title">📋 TRAINING LOG</span>
+      <button class="btn btn-sm btn-ghost" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div class="panel-body">
+      <div class="log-box" id="log-box">
+        {% for line in training.log %}
+        <div class="log-line">{{ line }}</div>
+        {% endfor %}
+        {% if not training.log %}
+        <div class="log-line muted">Waiting for training to start...</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Training History Plot -->
+  {% if best_exists %}
+  <div class="panel panel-wide">
+    <div class="panel-header">
+      <span class="panel-title">📈 TRAINING HISTORY</span>
+      <button class="btn btn-sm btn-ghost" onclick="reloadPlot()">↺ RELOAD</button>
+    </div>
+    <div class="panel-body">
+      <img id="history-plot"
+           src="/models/weights/training_history.png"
+           alt="Training history" class="history-plot"
+           onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s">
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- .dashboard-grid -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+let resumePanelOpen = false;
+
+function toggleResumePanel() {
+  resumePanelOpen = !resumePanelOpen;
+  document.getElementById("resume-section").style.display =
+    resumePanelOpen ? "block" : "none";
+  if (resumePanelOpen) {
+    document.getElementById("btn-resume").textContent = "↩ CANCEL RESUME";
+    document.getElementById("btn-train").textContent  = "↺ START RESUME";
+    document.getElementById("btn-train").onclick = () => startTraining(true);
+  } else {
+    document.getElementById("btn-resume").textContent = "↺ RESUME";
+    document.getElementById("btn-train").textContent  = "▶ START TRAINING";
+    document.getElementById("btn-train").onclick = () => startTraining(false);
+  }
+}
+
+function startTraining(resume) {
+  const ckpt = document.getElementById("ckpt-select")?.value || null;
+  document.getElementById("btn-train").disabled = true;
+  document.getElementById("btn-stop").disabled  = false;
+  document.getElementById("train-error").style.display = "none";
+
+  fetch("/train/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resume: resume, checkpoint: ckpt || null }),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) showError(d.error);
+    else startSSE();
+  })
+  .catch(e => showError(e.toString()));
+}
+
+function stopTraining() {
+  fetch("/train/stop", { method: "POST" })
+    .then(r => r.json())
+    .then(() => {
+      document.getElementById("train-badge").textContent = "STOPPING...";
+    });
+}
+
+function showError(msg) {
+  const el = document.getElementById("train-error");
+  el.textContent = "ERROR: " + msg;
+  el.style.display = "block";
+  document.getElementById("btn-train").disabled = false;
+  document.getElementById("btn-stop").disabled  = true;
+}
+
+function clearLog() {
+  document.getElementById("log-box").innerHTML =
+    '<div class="log-line muted">Log cleared.</div>';
+}
+
+function reloadPlot() {
+  const img = document.getElementById("history-plot");
+  if (img) img.src = "/models/weights/training_history.png?t=" + Date.now();
+}
+
+// ── Server-Sent Events ─────────────────────────────────────
+function startSSE() {
+  const es = new EventSource("/train/stream");
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    updateDashboard(d);
+    if (!d.running) {
+      es.close();
+      document.getElementById("btn-train").disabled = false;
+      document.getElementById("btn-stop").disabled  = true;
+      document.getElementById("train-badge").textContent = "COMPLETE";
+      setTimeout(reloadPlot, 2000);
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    document.getElementById("btn-train").disabled = false;
+    document.getElementById("btn-stop").disabled  = true;
+  };
+}
+
+function updateDashboard(d) {
+  if (d.epoch && d.total) {
+    const pct = (d.epoch / d.total * 100).toFixed(1);
+    document.getElementById("epoch-progress").style.width = pct + "%";
+    document.getElementById("epoch-label").textContent = `${d.epoch} / ${d.total}`;
+  }
+  if (d.best_acc !== null)
+    document.getElementById("best-acc").textContent =
+      (d.best_acc * 100).toFixed(1) + "%";
+  if (d.train_loss !== null)
+    document.getElementById("m-train-loss").textContent = d.train_loss?.toFixed(4) ?? "—";
+  if (d.val_loss !== null)
+    document.getElementById("m-val-loss").textContent = d.val_loss?.toFixed(4) ?? "—";
+  if (d.val_acc !== null)
+    document.getElementById("m-val-acc").textContent =
+      d.val_acc ? (d.val_acc * 100).toFixed(1) + "%" : "—";
+
+  const badge = document.getElementById("train-badge");
+  badge.textContent = d.running ? "TRAINING" : (d.error ? "ERROR" : "COMPLETE");
+  badge.className = "status-badge " + (d.running ? "badge-active" : (d.error ? "badge-error" : "badge-done"));
+
+  if (d.log && d.log.length) {
+    const box = document.getElementById("log-box");
+    d.log.forEach(line => {
+      const div = document.createElement("div");
+      div.className = "log-line";
+      div.textContent = line;
+      box.appendChild(div);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+
+  if (d.error) showError(d.error);
+
+  document.getElementById("nav-status-text").textContent =
+    d.running ? "TRAINING" : "STANDBY";
+}
+
+// Resume SSE if training was already running on page load
+{% if training.running %}
+startSSE();
+document.getElementById("btn-train").disabled = true;
+document.getElementById("btn-stop").disabled  = false;
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+# ============================================================
+# Tank Detection AI — Main Configuration
+# ============================================================
+
+# --- Hardware (RTX 3050 Ti Laptop: 4GB VRAM) ---
+device: "cuda"           # "cuda" | "cpu"
+fp16: true               # Mixed precision — saves VRAM
+
+# --- Tank / Vehicle Classes (classifier) ---
+# Add or remove classes as needed
+tank_classes:
+  - T-54/55
+  - T-62
+  - T-72
+  - T-80
+  - T-90
+  - T-14 Armata
+  - M1 Abrams
+  - M60 Patton
+  - Leopard 2
+  - Leopard 1
+  - Challenger 2
+  - K2 Black Panther
+  - Type 99
+  - Merkava Mk4
+  - AMX-56 Leclerc
+  - BMP-2
+  - BMP-3
+  - BTR-80
+  - M2 Bradley
+  - CV90
+
+# --- YOLO Detector (Stage 1) ---
+detector:
+  model: "yolov8s.pt"    # yolov8n | yolov8s (น้อยกว่า 4GB VRAM)
+  imgsz: 640
+  batch: 8               # 3050 Ti safe batch size
+  epochs: 100
+  lr0: 0.01
+  patience: 20           # early stopping
+  data_yaml: "data.yaml"
+  project: "models"
+  name: "detector"
+  save_period: 5         # save checkpoint ทุก 5 epoch
+
+# --- Classifier (Stage 2) ---
+classifier:
+  backbone: "resnet50"   # resnet50 | efficientnet_b2
+  imgsz: 224
+  batch: 32
+  epochs: 50
+  lr: 0.001
+  weight_decay: 0.0001
+  data_dir: "data/classifier"
+  checkpoint_dir: "models/checkpoints"
+  weights_dir: "models/weights"
+  save_every: 1          # save checkpoint ทุก epoch (resume ได้เสมอ)
+  val_split: 0.2
+  num_workers: 4
+
+# --- Inference ---
+inference:
+  detector_weights: "models/detector/weights/best.pt"
+  classifier_weights: "models/weights/classifier_best.pth"
+  conf_threshold: 0.45
+  iou_threshold: 0.45
+  min_vehicle_size: 30   # pixel — กรอง detection เล็กเกินไป
+
+# --- Web UI ---
+web:
+  host: "0.0.0.0"
+  port: 5050
+  upload_dir: "data/uploads"
+  max_upload_mb: 50
+  secret_key: "tank-ai-secret-key-change-this"
+
+# --- Camera ---
+camera:
+  default_index: 0       # กล้อง index (0 = default webcam)
+  width: 1280
+  height: 720
+  fps: 30

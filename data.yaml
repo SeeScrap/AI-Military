@@ -1,0 +1,22 @@
+# ============================================================
+# YOLO Dataset Configuration
+# ============================================================
+# Place your labeled images here:
+#   data/datasets/images/train/  + data/datasets/labels/train/
+#   data/datasets/images/val/    + data/datasets/labels/val/
+#
+# Label format: YOLO (.txt) — one file per image
+# Each line: <class_id> <cx> <cy> <w> <h>  (normalized 0-1)
+
+path: data/datasets
+
+train: images/train
+val:   images/val
+
+# Detection classes (broad categories)
+nc: 4
+names:
+  0: tank
+  1: IFV
+  2: APC
+  3: SPG

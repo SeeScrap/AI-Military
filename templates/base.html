@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Tank AI System{% endblock %}</title>
+  <meta name="description" content="AI ตรวจจับและระบุรุ่นรถถังสำหรับ Gunner — ระบบ AI ทางทหาร">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Scanline overlay ──────────────────────────────────── -->
+<div class="scanlines"></div>
+
+<!-- ── Navigation ───────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <span class="logo-bracket">[</span>
+      <span class="logo-text">TANK<span class="logo-accent">AI</span></span>
+      <span class="logo-bracket">]</span>
+    </div>
+    <div class="nav-subtitle">GUNNER ASSIST SYSTEM v1.0</div>
+  </div>
+  <div class="nav-links">
+    <a href="{{ url_for('index') }}"  class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+      <span class="nav-icon">⬡</span> DASHBOARD
+    </a>
+    <a href="{{ url_for('upload') }}" class="nav-link {% if request.endpoint == 'upload' %}active{% endif %}">
+      <span class="nav-icon">⬆</span> UPLOAD DATA
+    </a>
+    <a href="{{ url_for('test') }}" class="nav-link {% if request.endpoint == 'test' %}active{% endif %}">
+      <span class="nav-icon">🎯</span> TEST TARGET
+    </a>
+  </div>
+  <div class="nav-status">
+    <div class="status-dot {% if training %}active{% endif %}"></div>
+    <span id="nav-status-text">STANDBY</span>
+  </div>
+</nav>
+
+<!-- ── Main content ──────────────────────────────────────── -->
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ── Footer ───────────────────────────────────────────── -->
+<footer class="footer">
+  <span class="mono">TANK DETECTION AI SYSTEM</span>
+  <span class="footer-sep">|</span>
+  <span class="mono">RTX 3050 Ti OPTIMIZED</span>
+  <span class="footer-sep">|</span>
+  <span class="mono" id="footer-time"></span>
+</footer>
+
+<script>
+  // Clock
+  function updateTime() {
+    const now = new Date();
+    document.getElementById("footer-time").textContent =
+      now.toLocaleTimeString("th-TH", { hour12: false });
+  }
+  setInterval(updateTime, 1000);
+  updateTime();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
