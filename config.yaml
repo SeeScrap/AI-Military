@@ -9,7 +9,7 @@ fp16: true               # Mixed precision — saves VRAM
 # --- Tank / Vehicle Classes (classifier) ---
 # Add or remove classes as needed
 tank_classes:
-  - T-54/55
+  - T-55
   - T-62
   - T-72
   - T-80
@@ -42,6 +42,7 @@ detector:
   project: "models"
   name: "detector"
   save_period: 5         # save checkpoint ทุก 5 epoch
+  label_studio_dir: "data/label_studio"
 
 # --- Classifier (Stage 2) ---
 classifier:
@@ -60,7 +61,7 @@ classifier:
 
 # --- Inference ---
 inference:
-  detector_weights: "models/detector/weights/best.pt"
+  detector_weights: "runs/detect/models/detector/weights/best.pt"
   classifier_weights: "models/weights/classifier_best.pth"
   conf_threshold: 0.45
   iou_threshold: 0.45

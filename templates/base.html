@@ -36,6 +36,9 @@
     <a href="{{ url_for('test') }}" class="nav-link {% if request.endpoint == 'test' %}active{% endif %}">
       <span class="nav-icon">🎯</span> TEST TARGET
     </a>
+    <a href="{{ url_for('test_yolo') }}" class="nav-link {% if request.endpoint == 'test_yolo' %}active{% endif %}">
+      <span class="nav-icon">⚡</span> YOLO TRACKING
+    </a>
   </div>
   <div class="nav-status">
     <div class="status-dot {% if training %}active{% endif %}"></div>

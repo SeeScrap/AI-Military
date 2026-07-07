@@ -34,6 +34,8 @@ from PIL import Image
 with open("config.yaml", "r", encoding="utf-8") as f:
     CFG = yaml.safe_load(f)
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() and CFG["device"] == "cuda" else "cpu")
+
 app = Flask(__name__)
 app.secret_key = CFG["web"]["secret_key"]
 
@@ -179,12 +181,36 @@ def _run_training(resume: bool, checkpoint_path: str | None, config: dict | None
             if _stop_event.is_set():
                 trainer_module._stop_requested = True
 
-        trainer_module.train_classifier(
-            resume=resume,
-            checkpoint_path=checkpoint_path,
-            config=config or {},
-            progress_callback=patched_callback,
-        )
+        train_mode = config.get("train_mode", "classifier") if config else "classifier"
+
+        if train_mode == "both":
+            _log("Mode: YOLO Detector + Classifier (both stages)")
+            trainer_module.train_both(
+                resume=resume,
+                checkpoint_path=checkpoint_path,
+                config=config or {},
+                progress_callback=patched_callback,
+                log_fn=_log,
+            )
+        elif train_mode == "detector":
+            _log("Mode: YOLO Detector only")
+            # Auto-prepare dataset if needed
+            _log("Preparing YOLO dataset...")
+            trainer_module.prepare_yolo_dataset(CLASSIFIER_DIR, log_fn=_log)
+            _log("Starting YOLO Detector training...")
+            trainer_module.train_detector(
+                resume=resume,
+                config=config or {},
+                log_fn=_log,
+            )
+        else:
+            _log("Mode: Classifier only")
+            trainer_module.train_classifier(
+                resume=resume,
+                checkpoint_path=checkpoint_path,
+                config=config or {},
+                progress_callback=patched_callback,
+            )
         _log("Training finished successfully!")
     except Exception as e:
         training_state["error"] = str(e)
@@ -234,7 +260,7 @@ def upload():
 
     # Sanitize class name (keep alphanumeric, space, dash, slash, dot)
     safe_class = "".join(c for c in class_name if c.isalnum() or c in " -_/.")
-    safe_class = safe_class.strip().replace(" ", "_")
+    safe_class = safe_class.strip().replace(" ", "_").replace("/", "_")
 
     if not safe_class:
         return jsonify({"error": "Invalid class name"}), 400
@@ -249,14 +275,6 @@ def upload():
             continue
         if not allowed_file(f.filename):
             errors.append(f"{f.filename}: unsupported format")
-            continue
-
-        # Check size
-        f.seek(0, 2)
-        size_mb = f.tell() / 1e6
-        f.seek(0)
-        if size_mb > MAX_MB:
-            errors.append(f"{f.filename}: file too large ({size_mb:.1f} MB)")
             continue
 
         # Save with unique name to avoid collisions
@@ -277,6 +295,56 @@ def upload():
         "class":   safe_class,
         "total":   len(os.listdir(save_dir)),
     })
+
+
+@app.route("/import-label-studio", methods=["POST"])
+def import_label_studio():
+    if "file" not in request.files:
+        return jsonify({"error": "ไม่พบไฟล์ที่อัปโหลด"}), 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "ไม่ได้เลือกไฟล์"}), 400
+
+    if not file.filename.endswith(".zip"):
+        return jsonify({"error": "กรุณาอัปโหลดไฟล์ในรูปแบบ .zip เท่านั้น"}), 400
+
+    temp_dir = os.path.join(UPLOAD_DIR, "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_zip_path = os.path.join(temp_dir, f"ls_import_{uuid.uuid4().hex}.zip")
+
+    try:
+        file.save(temp_zip_path)
+
+        import train as trainer_module
+        ls_dir = CFG.get("detector", {}).get("label_studio_dir", "data/label_studio")
+
+        num_images, num_crops, classes = trainer_module.import_label_studio_dataset(
+            zip_path=temp_zip_path,
+            label_studio_dir=ls_dir,
+            classifier_dir=CLASSIFIER_DIR,
+            log_fn=_log
+        )
+
+        return jsonify({
+            "success": True,
+            "images_imported": num_images,
+            "crops_created": num_crops,
+            "classes": classes
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        _log(f"Error during Label Studio import: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if os.path.exists(temp_zip_path):
+            try:
+                os.remove(temp_zip_path)
+            except OSError:
+                pass
 
 
 @app.route("/train/start", methods=["POST"])
@@ -449,6 +517,161 @@ def test():
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Inference failed: {str(e)}"}), 500
+
+
+@app.route("/test-yolo", methods=["GET", "POST"])
+def test_yolo():
+    if request.method == "GET":
+        best_exists = os.path.exists(os.path.join(
+            WEIGHTS_DIR, "classifier_best.pth"))
+        return render_template("test_yolo.html",
+                               best_exists=best_exists,
+                               tank_classes=TANK_CLASSES,
+                               training=training_state)
+
+    # POST - run YOLO detection and tracking
+    if "file" not in request.files:
+        return jsonify({"error": "ไม่พบไฟล์ที่อัปโหลด"}), 400
+
+    file = request.files["file"]
+    if not file or file.filename == "":
+        return jsonify({"error": "ไม่ได้เลือกไฟล์"}), 400
+
+    try:
+        conf_thr = request.form.get("conf_threshold", None)
+        conf_thr = float(conf_thr) if conf_thr is not None else 0.25
+        
+        iou_thr = request.form.get("iou_threshold", None)
+        iou_thr = float(iou_thr) if iou_thr is not None else 0.45
+
+        # Check if file is image or video
+        filename = secure_filename(file.filename)
+        ext = Path(filename).suffix.lower()
+        
+        # Save uploaded file
+        save_path = os.path.join(UPLOAD_DIR, f"track_input_{uuid.uuid4().hex[:8]}{ext}")
+        file.save(save_path)
+
+        # Load YOLO model
+        from ultralytics import YOLO
+        det_weights = CFG["inference"]["detector_weights"]
+        if os.path.exists(det_weights):
+            _log(f"⚡ YOLO Tracking: โหลดโมเดลที่เทรนเองสำเร็จจาก -> {det_weights}")
+        else:
+            det_weights = CFG["detector"]["model"] # fallback to yolov8s.pt or similar
+            _log(f"⚠ YOLO Tracking: ไม่พบโมเดลที่เทรนเอง ({CFG['inference']['detector_weights']}) กำลังสลับไปใช้โมเดลพื้นฐาน -> {det_weights}")
+        
+        model = YOLO(det_weights)
+        model.to(DEVICE)
+
+        if ext in {".mp4", ".avi", ".mov", ".mkv"}:
+            # --- VIDEO TRACKING ---
+            cap = cv2.VideoCapture(save_path)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+
+            # Copy original video to static uploads directory for client streaming
+            web_video_name = f"input_{uuid.uuid4().hex[:12]}{ext}"
+            web_video_path = os.path.join("static", "uploads", web_video_name)
+            os.makedirs(os.path.dirname(web_video_path), exist_ok=True)
+            shutil.copy2(save_path, web_video_path)
+
+            # Run YOLO track
+            results = model.track(save_path, conf=conf_thr, iou=iou_thr, persist=True, verbose=False)
+            
+            tracks_per_frame = []
+            for frame_idx, res in enumerate(results):
+                frame_targets = []
+                if res.boxes is not None:
+                    has_id = res.boxes.id is not None
+                    for i, box in enumerate(res.boxes):
+                        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                        track_id = int(box.id[0]) if has_id else (i + 1)
+                        conf = float(box.conf[0])
+                        cls_idx = int(box.cls[0])
+                        cls_name = res.names.get(cls_idx, "vehicle")
+                        
+                        frame_targets.append({
+                            "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                            "track_id": track_id,
+                            "confidence": conf,
+                            "class_name": cls_name
+                        })
+                tracks_per_frame.append(frame_targets)
+
+            # Cleanup input file
+            if os.path.exists(save_path):
+                os.remove(save_path)
+
+            return jsonify({
+                "success": True,
+                "is_video": True,
+                "video_url": f"/static/uploads/{web_video_name}",
+                "fps": fps if fps > 0 else 30,
+                "width": w,
+                "height": h,
+                "tracks": tracks_per_frame
+            })
+
+        else:
+            # --- IMAGE TRACKING ---
+            img_bgr = cv2.imread(save_path)
+            if img_bgr is None:
+                return jsonify({"error": "ไม่สามารถอ่านไฟล์รูปภาพได้"}), 400
+                
+            h, w = img_bgr.shape[:2]
+            
+            # Run YOLO tracking
+            results = model.track(img_bgr, conf=conf_thr, iou=iou_thr, persist=True, verbose=False)[0]
+            
+            annotated_img = img_bgr.copy()
+            targets = []
+            
+            if results.boxes is not None:
+                has_id = results.boxes.id is not None
+                for i, box in enumerate(results.boxes):
+                    x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                    track_id = int(box.id[0]) if has_id else (i + 1)
+                    conf = float(box.conf[0])
+                    cls_idx = int(box.cls[0])
+                    cls_name = results.names.get(cls_idx, "vehicle")
+                    
+                    targets.append({
+                        "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                        "track_id": track_id,
+                        "confidence": conf,
+                        "class_name": cls_name
+                    })
+                    
+                    # Draw box and label
+                    cv2.rectangle(annotated_img, (x1, y1), (x2, y2), (0, 255, 136), 2)
+                    label = f"TRK #{track_id} | {cls_name} ({conf:.0%})"
+                    cv2.putText(annotated_img, label, (x1, max(0, y1 - 8)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 136), 2)
+
+            # Encode annotated image back to JPEG base64
+            _, buffer = cv2.imencode(".jpg", annotated_img)
+            img_base64 = base64.b64encode(buffer).decode("utf-8")
+
+            # Cleanup input file
+            if os.path.exists(save_path):
+                os.remove(save_path)
+
+            return jsonify({
+                "success": True,
+                "is_video": False,
+                "width": w,
+                "height": h,
+                "targets": targets,
+                "annotated_image": f"data:image/jpeg;base64,{img_base64}"
+            })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"การประมวลผลล้มเหลว: {str(e)}"}), 500
 
 
 if __name__ == "__main__":

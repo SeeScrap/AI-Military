@@ -11,65 +11,117 @@
 
 <div class="upload-grid">
 
-  <!-- Upload Panel -->
-  <div class="panel panel-primary upload-panel">
-    <div class="panel-header">
-      <span class="panel-title">⬆ UPLOAD IMAGES</span>
+  <!-- Left Column -->
+  <div style="display: flex; flex-direction: column; gap: 24px;">
+    <!-- Upload Panel -->
+    <div class="panel panel-primary upload-panel">
+      <div class="panel-header">
+        <span class="panel-title">⬆ UPLOAD IMAGES</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- Class selector -->
+        <div class="form-group">
+          <label class="form-label" for="class-input">
+            🎯 รุ่นรถถัง / ยานเกราะ <span class="required">*</span>
+          </label>
+          <div class="class-input-row">
+            <input type="text" id="class-input" class="form-input"
+                   placeholder="พิมพ์ชื่อรุ่น เช่น T-72, M1 Abrams..."
+                   list="class-suggestions" autocomplete="off">
+            <datalist id="class-suggestions">
+              {% for cls in tank_classes %}
+              <option value="{{ cls }}">
+              {% endfor %}
+            </datalist>
+          </div>
+          <div class="form-hint">
+            พิมพ์ชื่อรุ่นที่ต้องการ หรือเลือกจากรายการ (สามารถเพิ่มรุ่นใหม่ได้)
+          </div>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon">📁</div>
+          <div class="drop-title">ลากรูปภาพมาวางที่นี่</div>
+          <div class="drop-subtitle">หรือ</div>
+          <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">
+            เลือกไฟล์
+          </button>
+          <div class="drop-info">รองรับ: JPG, PNG, BMP, WEBP</div>
+          <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff"
+                 style="display:none" onchange="handleFiles(this.files)">
+        </div>
+
+        <!-- Preview grid -->
+        <div id="preview-grid" class="preview-grid" style="display:none"></div>
+
+        <!-- Upload button + progress -->
+        <div id="upload-controls" style="display:none">
+          <div class="progress-label">
+            <span id="upload-count">0 files selected</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearPreview()">✕ CLEAR</button>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="upload-progress" style="width:0%"></div>
+          </div>
+          <button class="btn btn-primary btn-lg" id="btn-upload" onclick="uploadFiles()">
+            ⬆ UPLOAD & LABEL
+          </button>
+        </div>
+
+        <!-- Result -->
+        <div id="upload-result" class="upload-result" style="display:none"></div>
+      </div>
     </div>
-    <div class="panel-body">
 
-      <!-- Class selector -->
-      <div class="form-group">
-        <label class="form-label" for="class-input">
-          🎯 รุ่นรถถัง / ยานเกราะ <span class="required">*</span>
-        </label>
-        <div class="class-input-row">
-          <input type="text" id="class-input" class="form-input"
-                 placeholder="พิมพ์ชื่อรุ่น เช่น T-72, M1 Abrams..."
-                 list="class-suggestions" autocomplete="off">
-          <datalist id="class-suggestions">
-            {% for cls in tank_classes %}
-            <option value="{{ cls }}">
-            {% endfor %}
-          </datalist>
+    <!-- Label Studio Import Panel -->
+    <div class="panel panel-primary upload-panel">
+      <div class="panel-header">
+        <span class="panel-title">◈ IMPORT FROM LABEL STUDIO</span>
+      </div>
+      <div class="panel-body">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          นำเข้า Dataset ที่ทำป้ายกำกับ (Label) แล้วจาก Label Studio ในรูปแบบ YOLO ZIP เพื่อเทรนทั้งตัวตรวจจับ (Detector) และตัวจำแนก (Classifier)
+        </p>
+
+        <!-- Drop zone for ZIP -->
+        <div class="drop-zone" id="ls-drop-zone">
+          <div class="drop-icon">📦</div>
+          <div class="drop-title">ลากไฟล์ ZIP ของ Label Studio มาวางที่นี่</div>
+          <div class="drop-subtitle">หรือ</div>
+          <button class="btn btn-secondary" onclick="document.getElementById('ls-file-input').click()">
+            เลือกไฟล์ ZIP
+          </button>
+          <div class="drop-info">รองรับ: .zip (YOLO Format)</div>
+          <input type="file" id="ls-file-input" accept=".zip" style="display:none" onchange="handleLsFile(this.files)">
         </div>
-        <div class="form-hint">
-          พิมพ์ชื่อรุ่นที่ต้องการ หรือเลือกจากรายการ (สามารถเพิ่มรุ่นใหม่ได้)
+
+        <!-- Selected ZIP Info -->
+        <div id="ls-controls" style="display:none; margin-top: 12px;">
+          <div class="progress-label" style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="ls-file-name" style="font-family: var(--font-mono); color: var(--accent-green);">filename.zip</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearLsFile()">✕ CLEAR</button>
+          </div>
+          <button class="btn btn-primary btn-lg" id="btn-ls-import" onclick="importLsFile()">
+            🚀 IMPORT DATASET
+          </button>
+        </div>
+
+        <!-- Result message -->
+        <div id="ls-result" class="upload-result" style="display:none; margin-top: 16px;"></div>
+
+        <!-- Guide / Instructions -->
+        <div class="tip-box" style="margin-top: 20px; border-color: rgba(0, 255, 136, 0.15);">
+          <div class="tip-title" style="color: var(--accent-green);">📋 ขั้นตอนการนำเข้าจาก Label Studio</div>
+          <ol class="tip-list" style="padding-left: 18px; font-size: 12px; line-height: 1.8;">
+            <li>ในโปรเจกต์ Label Studio กดปุ่ม <strong>Export</strong> ด้านขวาบน</li>
+            <li>เลือกรูปแบบไฟล์เป็น <strong>YOLO</strong> แล้วดาวน์โหลดไฟล์ ZIP</li>
+            <li>นำไฟล์ ZIP ที่ได้มาอัปโหลดที่นี่</li>
+            <li>ระบบจะประมวลผล <strong>Bounding Box</strong> เพื่อใช้สำหรับเทรน YOLO Detector และจะทำการ <strong>Crop รูปตาม Bounding Box</strong> ไปใส่ในคลาสสำหรับเทรน Classifier</li>
+          </ol>
         </div>
       </div>
-
-      <!-- Drop zone -->
-      <div class="drop-zone" id="drop-zone">
-        <div class="drop-icon">📁</div>
-        <div class="drop-title">ลากรูปภาพมาวางที่นี่</div>
-        <div class="drop-subtitle">หรือ</div>
-        <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">
-          เลือกไฟล์
-        </button>
-        <div class="drop-info">รองรับ: JPG, PNG, BMP, WEBP | ขนาดสูงสุด: 50 MB ต่อไฟล์</div>
-        <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff"
-               style="display:none" onchange="handleFiles(this.files)">
-      </div>
-
-      <!-- Preview grid -->
-      <div id="preview-grid" class="preview-grid" style="display:none"></div>
-
-      <!-- Upload button + progress -->
-      <div id="upload-controls" style="display:none">
-        <div class="progress-label">
-          <span id="upload-count">0 files selected</span>
-          <button class="btn btn-ghost btn-sm" onclick="clearPreview()">✕ CLEAR</button>
-        </div>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="upload-progress" style="width:0%"></div>
-        </div>
-        <button class="btn btn-primary btn-lg" id="btn-upload" onclick="uploadFiles()">
-          ⬆ UPLOAD & LABEL
-        </button>
-      </div>
-
-      <!-- Result -->
-      <div id="upload-result" class="upload-result" style="display:none"></div>
     </div>
   </div>
 
@@ -292,6 +344,88 @@ function refreshClassList() {
       list.appendChild(div);
     });
   });
+}
+
+// ── Label Studio Drag & Drop & Import ────────────────────────
+let lsSelectedFile = null;
+const lsDropZone = document.getElementById("ls-drop-zone");
+
+if (lsDropZone) {
+  lsDropZone.addEventListener("dragover",  (e) => { e.preventDefault(); lsDropZone.classList.add("drag-over"); });
+  lsDropZone.addEventListener("dragleave", ()  => lsDropZone.classList.remove("drag-over"));
+  lsDropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    lsDropZone.classList.remove("drag-over");
+    handleLsFile(e.dataTransfer.files);
+  });
+}
+
+function handleLsFile(fileList) {
+  if (fileList.length === 0) return;
+  const file = fileList[0];
+  if (!file.name.endsWith(".zip")) {
+    alert("กรุณาเลือกไฟล์ .zip เท่านั้น");
+    return;
+  }
+  lsSelectedFile = file;
+  document.getElementById("ls-file-name").textContent = `${file.name} (${(file.size / 1e6).toFixed(1)} MB)`;
+  document.getElementById("ls-controls").style.display = "block";
+  document.getElementById("ls-result").style.display = "none";
+}
+
+function clearLsFile() {
+  lsSelectedFile = null;
+  document.getElementById("ls-controls").style.display = "none";
+  document.getElementById("ls-file-input").value = "";
+  document.getElementById("ls-result").style.display = "none";
+}
+
+async function importLsFile() {
+  if (!lsSelectedFile) return;
+  
+  const btn = document.getElementById("btn-ls-import");
+  const result = document.getElementById("ls-result");
+  
+  btn.disabled = true;
+  btn.textContent = "⏳ IMPORTING & CROPPING...";
+  result.style.display = "none";
+  
+  const fd = new FormData();
+  fd.append("file", lsSelectedFile);
+  
+  try {
+    const res = await fetch("/import-label-studio", {
+      method: "POST",
+      body: fd,
+      signal: AbortSignal.timeout(120000) // 2 minutes timeout for parsing & cropping
+    });
+    
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP error! status: ${res.status}`);
+    }
+    
+    result.innerHTML = `
+      <div class="result-success">
+        ✓ นำเข้าสำเร็จ!<br>
+        - รูปภาพสำหรับ Detector: <strong>${data.images_imported} รูป</strong><br>
+        - Crop สำหรับ Classifier: <strong>${data.crops_created} รูป</strong><br>
+        - คลาสทั้งหมด: <strong>${data.classes.join(", ")}</strong>
+      </div>
+    `;
+    result.style.display = "block";
+    clearLsFile();
+    refreshClassList();
+  } catch (e) {
+    result.innerHTML = `
+      <div class="result-errors">
+        ⚠ ล้มเหลว: ${e.message}
+      </div>
+    `;
+    result.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "🚀 IMPORT DATASET";
+  }
 }
 </script>
 {% endblock %}

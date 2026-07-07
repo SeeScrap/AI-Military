@@ -1,0 +1,705 @@
+{% extends "base.html" %}
+{% block title %}YOLO Detector & Tracking — Tank AI System{% endblock %}
+
+{% block head %}
+<style>
+  .test-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+  }
+  @media (max-width: 992px) {
+    .test-grid { grid-template-columns: 1fr; gap: 16px; }
+  }
+  
+  .display-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 1px solid var(--border-dim);
+    background: rgba(6, 10, 15, 0.9);
+    min-height: 460px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  
+  .hud-canvas {
+    max-width: 100%;
+    max-height: 550px;
+    display: block;
+    object-fit: contain;
+    border-radius: var(--radius);
+  }
+  
+  /* Wrapper for Video and Canvas Overlay */
+  .video-wrapper {
+    position: relative;
+    max-width: 100%;
+    max-height: 550px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .video-element {
+    max-width: 100%;
+    max-height: 550px;
+    display: block;
+    object-fit: contain;
+    border-radius: var(--radius);
+  }
+  
+  .overlay-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    border-radius: var(--radius);
+  }
+  
+  .hud-overlay-text {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    font-family: var(--font-mono);
+    color: var(--accent-green);
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+    pointer-events: none;
+    font-size: 13px;
+    line-height: 1.6;
+    background: rgba(5, 9, 14, 0.85);
+    padding: 10px 14px;
+    border-left: 2px solid var(--accent-green);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    backdrop-filter: blur(4px);
+    z-index: 5;
+  }
+  
+  .hud-corner {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--accent-green);
+    pointer-events: none;
+    opacity: 0.5;
+    z-index: 4;
+  }
+  .hud-corner-tl { top: 16px; left: 16px; border-right: none; border-bottom: none; }
+  .hud-corner-tr { top: 16px; right: 16px; border-left: none; border-bottom: none; }
+  .hud-corner-bl { bottom: 16px; left: 16px; border-right: none; border-top: none; }
+  .hud-corner-br { bottom: 16px; right: 16px; border-left: none; border-top: none; }
+  
+  .target-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    margin-top: 12px;
+  }
+  .target-table th, .target-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .target-table th {
+    color: var(--accent-green);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+    background: rgba(0, 255, 136, 0.02);
+  }
+  .target-row { transition: background 0.15s ease; }
+  .target-row:hover { background: rgba(0, 255, 136, 0.04); }
+  
+  .conf-badge-container { display: flex; align-items: center; gap: 8px; }
+  .conf-bar-track {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    width: 60px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .conf-bar-fill { height: 100%; background: var(--accent-green); }
+  
+  .parameter-box {
+    background: var(--bg-panel-alt);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .btn-row-test {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  
+  .drop-zone-test {
+    border: 2px dashed var(--border-bright);
+    padding: 48px 24px;
+    text-align: center;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(0, 255, 136, 0.01);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 360px;
+  }
+  .drop-zone-test:hover, .drop-zone-test.drag-over {
+    border-color: var(--accent-green);
+    background: rgba(0, 255, 136, 0.04);
+    box-shadow: inset 0 0 24px rgba(0, 255, 136, 0.05);
+  }
+  
+  .drop-zone-test-icon {
+    color: var(--accent-green);
+    margin-bottom: 16px;
+    opacity: 0.85;
+  }
+  
+  .slider-container { margin-top: 16px; }
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .slider-val { color: var(--accent-green); font-weight: bold; }
+  .range-input {
+    width: 100%;
+    accent-color: var(--accent-green);
+    background: var(--bg-base);
+    border-radius: var(--radius);
+    height: 6px;
+    outline: none;
+    margin-top: 10px;
+    cursor: pointer;
+    border: 1px solid var(--border-dim);
+  }
+  
+  .empty-target-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .badge-type {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+  .badge-yolo { background: rgba(0, 255, 136, 0.12); color: #00ff88; border: 1px solid rgba(0, 255, 136, 0.25); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <span class="title-accent">⚡</span> YOLO DETECTOR & TARGET TRACKING
+  </h1>
+  <p class="page-subtitle">ทดสอบโมเดลตรวจจับพิกัดและการติดตามเป้าหมายแบบเรียลไทม์ (YOLOv8 Real-time Tracking)</p>
+</div>
+
+<div class="test-grid">
+
+  <!-- Left side: Media HUD Display -->
+  <div class="panel panel-primary">
+    <div class="panel-header">
+      <span class="panel-title">🛡 DETECTOR & TARGETING TRACKING HUD</span>
+      <span class="status-badge badge-active" style="border-radius: 4px;">STAGE 1 ONLY</span>
+    </div>
+    <div class="panel-body" style="padding: 16px;">
+      
+      <div class="display-panel" id="display-container">
+        <!-- Default State: Upload Area -->
+        <div class="drop-zone-test" id="drop-zone" onclick="document.getElementById('file-input').click()">
+          <div class="drop-zone-test-icon">
+            <svg class="ui-icon ui-icon-lg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="drop-title" style="font-weight: 600; letter-spacing: 1px; font-size: 16px; margin-bottom: 6px;">
+            กรุณาเลือกไฟล์รูปภาพหรือวิดีโอมาวางที่นี่
+          </div>
+          <div class="drop-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">
+            รองรับ: JPG, PNG, BMP, WEBP หรือ MP4, AVI, MOV
+          </div>
+          <button class="btn btn-primary">
+            เปิดไฟล์สื่อ
+          </button>
+          <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff,.mp4,.avi,.mov,.mkv" style="display:none" onchange="loadMedia(this.files[0])">
+        </div>
+        
+        <!-- Active State: Image annotated -->
+        <img id="hud-img" class="hud-canvas" style="display:none;" alt="YOLO Static Output">
+        
+        <!-- Active State: Video with Canvas Overlay -->
+        <div id="video-container" class="video-wrapper" style="display:none;">
+          <video id="track-video" class="video-element" muted playsinline loop></video>
+          <canvas id="track-canvas" class="overlay-canvas"></canvas>
+        </div>
+
+        <div id="hud-details" class="hud-overlay-text" style="display:none;">
+          SYSTEM: YOLO REALTIME TRACKING<br>
+          RESOLUTION: <span id="media-res">—</span><br>
+          FPS: <span id="media-fps">—</span><br>
+          TIME: <span id="run-time">—</span>
+        </div>
+        
+        <!-- Corners for HUD styling -->
+        <div class="hud-corner hud-corner-tl"></div>
+        <div class="hud-corner hud-corner-tr"></div>
+        <div class="hud-corner hud-corner-bl"></div>
+        <div class="hud-corner hud-corner-br"></div>
+      </div>
+      
+      <!-- Action buttons -->
+      <div class="btn-row-test" id="active-actions" style="display:none;">
+        <button class="btn btn-secondary" onclick="resetTest()">
+          ✕ CLEAR MEDIA
+        </button>
+        <button class="btn btn-primary" id="btn-re-run" onclick="runInference()">
+          ⚡ RE-RUN TRACKING TEST
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Right side: Parameters and Targets List -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">⚙ TRACKING TUNING & REAL-TIME LOG</span>
+    </div>
+    <div class="panel-body">
+      
+      <!-- Parameters -->
+      <div class="parameter-box">
+        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--accent-green); margin-bottom: 12px; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+          ⚙ Tuning parameters
+        </h4>
+        
+        <!-- Confidence threshold slider -->
+        <div class="slider-container">
+          <div class="slider-header">
+            <span>CONFIDENCE THRESHOLD (ความมั่นใจขั้นต่ำ)</span>
+            <span class="slider-val" id="conf-val">25%</span>
+          </div>
+          <input type="range" id="conf-input" class="range-input" min="5" max="95" value="25" oninput="updateConfLabel(this.value)">
+        </div>
+
+        <!-- IOU threshold slider -->
+        <div class="slider-container" style="margin-top: 14px;">
+          <div class="slider-header">
+            <span>IOU THRESHOLD (การซ้อนทับกรอบ)</span>
+            <span class="slider-val" id="iou-val">45%</span>
+          </div>
+          <input type="range" id="iou-input" class="range-input" min="5" max="95" value="45" oninput="updateIouLabel(this.value)">
+        </div>
+      </div>
+
+      <!-- Target Log Section -->
+      <div style="margin-top: 16px;">
+        <h4 style="font-size: 13px; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border-dim); padding-bottom: 8px; display:flex; justify-content:space-between; align-items: center;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            📋 ACTIVE TRACKS
+          </span>
+          <span class="mono accent-green" id="target-count-badge" style="font-size:11px;">0 TARGETS</span>
+        </h4>
+        
+        <div id="target-list-container" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+          <!-- Empty state -->
+          <div class="empty-target-state" id="empty-targets">
+            <svg class="ui-icon ui-icon-lg" style="opacity: 0.4;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+            <p>ยังไม่มีการตรวจพบเป้าหมาย</p>
+            <span style="font-size: 11px; color: var(--text-muted);">
+              กรุณาอัปโหลดรูปภาพหรือวิดีโอเป้าหมายเพื่อเริ่มต้นการตรวจจับและติดตามพิกัด
+            </span>
+          </div>
+          
+          <!-- Targets table -->
+          <table class="target-table" id="targets-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>TRACK ID</th>
+                <th>CLASS / TYPE</th>
+                <th>COORDINATES (X, Y)</th>
+                <th>CONFIDENCE</th>
+              </tr>
+            </thead>
+            <tbody id="targets-tbody">
+              <!-- JS rendered -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentFile = null;
+  let isVideo = false;
+  let tracksData = []; // frame-by-frame track data for video
+  let videoFps = 30;
+  let scaleX = 1;
+  let scaleY = 1;
+  let originalWidth = 640;
+  let originalHeight = 480;
+  let animationId = null;
+
+  const canvas = document.getElementById("track-canvas");
+  const ctx = canvas.getContext("2d");
+  const video = document.getElementById("track-video");
+
+  // Drag and Drop
+  const dropZone = document.getElementById("drop-zone");
+  dropZone.addEventListener("dragover",  (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    if (e.dataTransfer.files.length) {
+      loadMedia(e.dataTransfer.files[0]);
+    }
+  });
+
+  function updateConfLabel(val) { document.getElementById("conf-val").textContent = val + "%"; }
+  function updateIouLabel(val) { document.getElementById("iou-val").textContent = val + "%"; }
+
+  function loadMedia(file) {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    const isImg = /\.(jpg|jpeg|png|bmp|webp|tiff)$/i.test(name);
+    const isVid = /\.(mp4|avi|mov|mkv)$/i.test(name);
+
+    if (!isImg && !isVid) {
+      alert("กรุณาเลือกไฟล์รูปภาพหรือไฟล์วิดีโอที่รองรับเท่านั้น");
+      return;
+    }
+
+    resetTest();
+    currentFile = file;
+    isVideo = isVid;
+
+    document.getElementById("drop-zone").style.display = "none";
+    document.getElementById("active-actions").style.display = "grid";
+
+    if (isVideo) {
+      document.getElementById("video-container").style.display = "flex";
+      document.getElementById("hud-img").style.display = "none";
+      video.src = URL.createObjectURL(file);
+      video.load();
+    } else {
+      document.getElementById("video-container").style.display = "none";
+      const hudImg = document.getElementById("hud-img");
+      hudImg.style.display = "block";
+      hudImg.src = URL.createObjectURL(file);
+    }
+
+    runInference();
+  }
+
+  function resetTest() {
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+    currentFile = null;
+    isVideo = false;
+    tracksData = [];
+    document.getElementById("file-input").value = "";
+    
+    // Clean URL objects to prevent memory leaks
+    if (video.src) { URL.revokeObjectURL(video.src); video.src = ""; }
+    const hudImg = document.getElementById("hud-img");
+    if (hudImg.src) { URL.revokeObjectURL(hudImg.src); hudImg.src = ""; }
+
+    document.getElementById("drop-zone").style.display = "flex";
+    document.getElementById("video-container").style.display = "none";
+    hudImg.style.display = "none";
+    document.getElementById("hud-details").style.display = "none";
+    document.getElementById("active-actions").style.display = "none";
+    
+    document.getElementById("targets-table").style.display = "none";
+    document.getElementById("empty-targets").style.display = "flex";
+    document.getElementById("target-count-badge").textContent = "0 TARGETS";
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function runInference() {
+    if (!currentFile) return;
+
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+
+    const btn = document.getElementById("btn-re-run");
+    const confVal = parseFloat(document.getElementById("conf-input").value) / 100.0;
+    const iouVal = parseFloat(document.getElementById("iou-input").value) / 100.0;
+    
+    btn.disabled = true;
+    btn.textContent = "⏳ PROCESSING TARGETS...";
+    
+    const formData = new FormData();
+    formData.append("file", currentFile);
+    formData.append("conf_threshold", confVal);
+    formData.append("iou_threshold", iouVal);
+
+    const startTime = performance.now();
+
+    fetch("/test-yolo", {
+      method: "POST",
+      body: formData
+    })
+    .then(r => {
+      if (!r.ok) {
+        return r.json().then(err => { throw new Error(err.error || "เกิดข้อผิดพลาดในการประมวลผล") });
+      }
+      return r.json();
+    })
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = "⚡ RE-RUN TRACKING TEST";
+      
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+      
+      document.getElementById("hud-details").style.display = "block";
+      document.getElementById("media-res").textContent = data.width + "x" + data.height;
+      document.getElementById("run-time").textContent = elapsed + "s";
+      originalWidth = data.width;
+      originalHeight = data.height;
+
+      if (data.is_video) {
+        document.getElementById("media-fps").textContent = data.fps.toFixed(1) + " FPS";
+        videoFps = data.fps;
+        tracksData = data.tracks;
+        
+        // Setup video elements
+        video.src = data.video_url;
+        video.load();
+        
+        video.onloadedmetadata = () => {
+          resizeCanvas();
+          video.play();
+          animationId = requestAnimationFrame(drawFrame);
+        };
+      } else {
+        document.getElementById("media-fps").textContent = "STATIC";
+        document.getElementById("hud-img").src = data.annotated_image;
+        updateStaticTargetsTable(data.targets);
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = "⚡ RE-RUN TRACKING TEST";
+      alert("Error: " + err.message);
+    });
+  }
+
+  function resizeCanvas() {
+    canvas.width = video.clientWidth;
+    canvas.height = video.clientHeight;
+    scaleX = canvas.width / originalWidth;
+    scaleY = canvas.height / originalHeight;
+    canvas.style.width = video.clientWidth + "px";
+    canvas.style.height = video.clientHeight + "px";
+  }
+
+  window.addEventListener("resize", () => {
+    if (isVideo && video.src) {
+      resizeCanvas();
+    }
+  });
+
+  // Main canvas loop
+  function drawFrame() {
+    if (video.paused || video.ended) {
+      animationId = requestAnimationFrame(drawFrame);
+      return;
+    }
+
+    const currentFrame = Math.floor(video.currentTime * videoFps);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (currentFrame < tracksData.length) {
+      const targets = tracksData[currentFrame];
+      updateTargetsTable(targets);
+
+      targets.forEach(t => {
+        const x = t.x1 * scaleX;
+        const y = t.y1 * scaleY;
+        const w = (t.x2 - t.x1) * scaleX;
+        const h = (t.y2 - t.y1) * scaleY;
+
+        // Draw Bounding Box (Military Green HUD style)
+        ctx.strokeStyle = "#00ff88";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+
+        // HUD Corner brackets (extra tactical look)
+        const corner = Math.min(12, w * 0.2, h * 0.2);
+        ctx.strokeStyle = "#00ff88";
+        ctx.lineWidth = 3;
+        
+        // TL
+        ctx.beginPath(); ctx.moveTo(x + corner, y); ctx.lineTo(x, y); ctx.lineTo(x, y + corner); ctx.stroke();
+        // TR
+        ctx.beginPath(); ctx.moveTo(x + w - corner, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + corner); ctx.stroke();
+        // BL
+        ctx.beginPath(); ctx.moveTo(x + corner, y + h); ctx.lineTo(x, y + h); ctx.lineTo(x, y + h - corner); ctx.stroke();
+        // BR
+        ctx.beginPath(); ctx.moveTo(x + w - corner, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - corner); ctx.stroke();
+
+        // Label box
+        ctx.fillStyle = "rgba(13, 21, 32, 0.85)";
+        ctx.fillRect(x, Math.max(0, y - 20), Math.max(w, 140), 20);
+        ctx.fillStyle = "#00ff88";
+        ctx.font = "bold 10px Share Tech Mono";
+        ctx.fillText(`TRK #${t.track_id} | ${t.class_name.toUpperCase()}`, x + 6, Math.max(0, y - 6));
+
+        // Draw history trail
+        drawTrail(t.track_id, currentFrame);
+      });
+    }
+
+    animationId = requestAnimationFrame(drawFrame);
+  }
+
+  function drawTrail(trackId, currentFrame) {
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(0, 255, 136, 0.45)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+
+    let first = true;
+    const lookback = Math.max(0, currentFrame - 60); // 2 seconds history
+    
+    for (let f = lookback; f <= currentFrame; f++) {
+      const targets = tracksData[f];
+      if (!targets) continue;
+      const t = targets.find(item => item.track_id === trackId);
+      if (t) {
+        const cx = ((t.x1 + t.x2) / 2) * scaleX;
+        const cy = ((t.y1 + t.y2) / 2) * scaleY;
+        if (first) {
+          ctx.moveTo(cx, cy);
+          first = false;
+        } else {
+          ctx.lineTo(cx, cy);
+        }
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function updateStaticTargetsTable(targets) {
+    const table = document.getElementById("targets-table");
+    const emptyState = document.getElementById("empty-targets");
+    const tbody = document.getElementById("targets-tbody");
+    const badge = document.getElementById("target-count-badge");
+    
+    tbody.innerHTML = "";
+    badge.textContent = targets.length + " TARGETS";
+
+    if (targets.length === 0) {
+      table.style.display = "none";
+      emptyState.style.display = "flex";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    table.style.display = "table";
+
+    targets.forEach(t => {
+      const row = document.createElement("tr");
+      row.className = "target-row";
+      const coords = `[${t.x1}, ${t.y1}, ${t.x2}, ${t.y2}]`;
+      
+      row.innerHTML = `
+        <td><strong style="color:var(--accent-green)">#${t.track_id}</strong></td>
+        <td><span class="badge-type badge-yolo">${t.class_name}</span></td>
+        <td>${coords}</td>
+        <td>
+          <div class="conf-badge-container">
+            <span class="mono">${(t.confidence * 100).toFixed(0)}%</span>
+            <div class="conf-bar-track">
+              <div class="conf-bar-fill" style="width: ${(t.confidence * 100).toFixed(0)}%"></div>
+            </div>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function updateTargetsTable(targets) {
+    const table = document.getElementById("targets-table");
+    const emptyState = document.getElementById("empty-targets");
+    const tbody = document.getElementById("targets-tbody");
+    const badge = document.getElementById("target-count-badge");
+    
+    // We only update table contents if they changed, to prevent jittering DOM updates
+    badge.textContent = targets.length + " TARGETS";
+
+    if (targets.length === 0) {
+      table.style.display = "none";
+      emptyState.style.display = "flex";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    table.style.display = "table";
+
+    // Re-render
+    tbody.innerHTML = "";
+    targets.forEach(t => {
+      const row = document.createElement("tr");
+      row.className = "target-row";
+      const coords = `[${t.x1}, ${t.y1}, ${t.x2}, ${t.y2}]`;
+      
+      row.innerHTML = `
+        <td><strong style="color:var(--accent-green)">#${t.track_id}</strong></td>
+        <td><span class="badge-type badge-yolo">${t.class_name}</span></td>
+        <td>${coords}</td>
+        <td>
+          <div class="conf-badge-container">
+            <span class="mono">${(t.confidence * 100).toFixed(0)}%</span>
+            <div class="conf-bar-track">
+              <div class="conf-bar-fill" style="width: ${(t.confidence * 100).toFixed(0)}%"></div>
+            </div>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+</script>
+{% endblock %}

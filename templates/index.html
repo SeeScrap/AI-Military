@@ -540,6 +540,16 @@
         </div>
       </div>
 
+      <!-- Training Mode Selector -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-label" for="cfg-train-mode" style="color: var(--accent-cyan);">🎯 TRAINING MODE (โหมดการเทรน)</label>
+        <select class="form-select" id="cfg-train-mode" onchange="onTrainModeChange(this.value)" style="border-color: rgba(0, 212, 255, 0.3); box-shadow: 0 0 8px rgba(0, 212, 255, 0.05); font-weight: 600;">
+          <option value="classifier" selected>Classifier Only (Stage 2) — เทรนเฉพาะโมเดลจำแนกรุ่น</option>
+          <option value="detector">YOLO Detector Only (Stage 1) — เทรนเฉพาะโมเดลตรวจจับพิกัด</option>
+          <option value="both">Both Stages (YOLO + Classifier) — เทรนควบคู่ทั้งสองระบบ</option>
+        </select>
+      </div>
+
       <!-- Custom config accordion -->
       <div class="accordion">
         <button class="accordion-trigger" id="cfg-btn" aria-expanded="false" aria-controls="cfg-body" onclick="toggleCfg()">
@@ -551,7 +561,7 @@
           <div class="cfg-grid">
 
             <!-- Architecture -->
-            <div class="cfg-section">
+            <div class="cfg-section" id="sec-architecture">
               <div class="cfg-section-head">Architecture</div>
               <div class="form-group">
                 <label class="form-label" for="cfg-backbone">Backbone</label>
@@ -574,7 +584,7 @@
             </div>
 
             <!-- Hyperparameters -->
-            <div class="cfg-section">
+            <div class="cfg-section" id="sec-hyperparams">
               <div class="cfg-section-head">Hyperparameters</div>
               <div class="fg2">
                 <div class="form-group">
@@ -605,7 +615,7 @@
             </div>
 
             <!-- Optimizer -->
-            <div class="cfg-section">
+            <div class="cfg-section" id="sec-optimizer">
               <div class="cfg-section-head">Optimizer</div>
               <div class="form-group">
                 <label class="form-label" for="cfg-optimizer">Optimizer</label>
@@ -629,7 +639,7 @@
             </div>
 
             <!-- Data -->
-            <div class="cfg-section">
+            <div class="cfg-section" id="sec-data">
               <div class="cfg-section-head">Data & Regularization</div>
               <div class="fg2">
                 <div class="form-group">
@@ -664,7 +674,7 @@
             </div>
 
             <!-- Early stop -->
-            <div class="cfg-section cfg-section-wide">
+            <div class="cfg-section cfg-section-wide" id="sec-earlystop">
               <div class="cfg-section-head">Early Stopping & Checkpointing</div>
               <div class="fg3">
                 <div class="form-group">
@@ -682,6 +692,46 @@
                     <option value="val_loss">Val Loss</option>
                     <option value="f1">F1 Score</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- YOLO Detector -->
+            <div class="cfg-section cfg-section-wide" id="sec-yolo" style="display:none;">
+              <div class="cfg-section-head" style="display:flex;align-items:center;justify-content:space-between">
+                <span>⚡ YOLO Detector (Stage 1)</span>
+                <label class="aug-label" style="margin:0;font-size:10px;display:none;">
+                  <input type="checkbox" id="cfg-train-yolo" name="train_yolo">
+                  Enable
+                </label>
+              </div>
+              <div id="yolo-cfg-body">
+                <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0">
+                  Auto-generates YOLO dataset from your uploaded images.
+                  Trains a vehicle detector.
+                </p>
+                <div class="fg3">
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-yolo-model">YOLO Model</label>
+                    <select class="form-select" id="cfg-yolo-model" name="yolo_model">
+                      <option value="runs/detect/models/detector/weights/best.pt">โมเดลที่เคยเทรนแล้ว (best.pt)</option>
+                      <option value="yolov8n.pt">YOLOv8n (fast)</option>
+                      <option value="yolov8s.pt" selected>YOLOv8s (balanced)</option>
+                      <option value="yolov8m.pt">YOLOv8m (accurate)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-yolo-epochs">Epochs</label>
+                    <input class="form-input" type="number" id="cfg-yolo-epochs" name="yolo_epochs" value="50" min="5" max="300">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-yolo-batch">Batch Size</label>
+                    <select class="form-select" id="cfg-yolo-batch" name="yolo_batch">
+                      <option value="4">4</option>
+                      <option value="8" selected>8</option>
+                      <option value="16">16</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -832,7 +882,10 @@ function toggleCfg() {
 }
 
 function collectCfg() {
+  const mode = document.getElementById("cfg-train-mode").value;
   return {
+    train_mode:   mode,
+    train_yolo:   (mode === "detector" || mode === "both"),
     backbone:     document.getElementById("cfg-backbone").value,
     pretrained:   document.getElementById("cfg-pretrained").value,
     epochs:       +document.getElementById("cfg-epochs").value,
@@ -847,6 +900,9 @@ function collectCfg() {
     patience:     +document.getElementById("cfg-patience").value,
     ckpt_freq:    +document.getElementById("cfg-ckpt-freq").value,
     monitor:      document.getElementById("cfg-monitor").value,
+    yolo_model:   document.getElementById("cfg-yolo-model").value,
+    yolo_epochs:  +document.getElementById("cfg-yolo-epochs").value,
+    yolo_batch:   +document.getElementById("cfg-yolo-batch").value,
     augmentations: {
       flip:   document.getElementById("aug-flip").checked,
       rotate: document.getElementById("aug-rotate").checked,
@@ -856,6 +912,42 @@ function collectCfg() {
   };
 }
 
+/* ── Training Mode Change Handler ───────────────────── */
+function onTrainModeChange(mode) {
+  const secArch = document.getElementById("sec-architecture");
+  const secHyper = document.getElementById("sec-hyperparams");
+  const secOpt = document.getElementById("sec-optimizer");
+  const secData = document.getElementById("sec-data");
+  const secEarly = document.getElementById("sec-earlystop");
+  const secYolo = document.getElementById("sec-yolo");
+  
+  if (mode === "classifier") {
+    if (secArch) secArch.style.display = "block";
+    if (secHyper) secHyper.style.display = "block";
+    if (secOpt) secOpt.style.display = "block";
+    if (secData) secData.style.display = "block";
+    if (secEarly) secEarly.style.display = "block";
+    if (secYolo) secYolo.style.display = "none";
+    document.getElementById("cfg-train-yolo").checked = false;
+  } else if (mode === "detector") {
+    if (secArch) secArch.style.display = "none";
+    if (secHyper) secHyper.style.display = "none";
+    if (secOpt) secOpt.style.display = "none";
+    if (secData) secData.style.display = "none";
+    if (secEarly) secEarly.style.display = "none";
+    if (secYolo) secYolo.style.display = "block";
+    document.getElementById("cfg-train-yolo").checked = true;
+  } else if (mode === "both") {
+    if (secArch) secArch.style.display = "block";
+    if (secHyper) secHyper.style.display = "block";
+    if (secOpt) secOpt.style.display = "block";
+    if (secData) secData.style.display = "block";
+    if (secEarly) secEarly.style.display = "block";
+    if (secYolo) secYolo.style.display = "block";
+    document.getElementById("cfg-train-yolo").checked = true;
+  }
+}
+
 const DEFAULTS = {
   backbone:"efficientnet_b3", pretrained:"imagenet",
   epochs:30, batch_size:32, lr:0.001, weight_decay:0.0001,
@@ -863,7 +955,11 @@ const DEFAULTS = {
   img_size:224, dropout:0.3, val_split:20,
   patience:10, ckpt_freq:5, monitor:"val_acc",
 };
+
 function resetCfg() {
+  document.getElementById("cfg-train-mode").value = "classifier";
+  onTrainModeChange("classifier");
+
   document.getElementById("cfg-backbone").value   = DEFAULTS.backbone;
   document.getElementById("cfg-pretrained").value = DEFAULTS.pretrained;
   document.getElementById("cfg-epochs").value     = DEFAULTS.epochs;
@@ -884,6 +980,9 @@ function resetCfg() {
   document.getElementById("aug-rotate").checked  = true;
   document.getElementById("aug-color").checked   = false;
   document.getElementById("aug-mixup").checked   = false;
+  document.getElementById("cfg-yolo-model").value   = "yolov8s.pt";
+  document.getElementById("cfg-yolo-epochs").value  = 50;
+  document.getElementById("cfg-yolo-batch").value   = 8;
 }
 function exportCfg() {
   const b = new Blob([JSON.stringify(collectCfg(), null, 2)], {type:"application/json"});

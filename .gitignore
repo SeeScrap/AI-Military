@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 models/*
+data/classifier/T-55/
+data/classifier/Tanks/
